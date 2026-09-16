@@ -13,8 +13,6 @@ npx playwright install chromium
 npm link
 ```
 
-설치 끝, 이제 어디서든 `newrrow`.
-
 ## 실행
 
 ```bash
