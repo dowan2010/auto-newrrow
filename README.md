@@ -44,7 +44,7 @@ newrrow
 ## 참고
 
 - 브라우저 창 보고 싶으면 설정(7)에서 켜고 끄기 (`.env`의 `HEADLESS`)
-- MIT License
+- GPL-3.0 License
 
 ## 문제 발생 시
 
