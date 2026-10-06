@@ -24,12 +24,16 @@ const ENV_PATH = join(__dirname, '.env');
 // 항상 이 스크립트가 있는 폴더의 .env를 명시적으로 읽음
 loadEnv({ path: ENV_PATH });
 
-import { submitReflection, resetReflection, getTasksWithToken, browserCreateTask, browserCreateSchedule } from './automation.js';
+import { resetReflection, getTasksWithToken, browserCreateTask, browserCreateSchedule } from './automation.js';
+import { submitReflection, openAgentSession } from './lib/agent.js';
 import { addSubmissionHistory, removeSubmissionHistory, addRecentTopic, getRecentTopics } from './lib/data.js';
-import { generateTopic, generateReflection, generateWithRetry } from './lib/ai.js';
+import { generateTopic, generateReflection, generateWithRetry, generateTaskTitle } from './lib/ai.js';
 
 let EMAIL = process.env.EMAIL || process.env.TEST_EMAIL;
 let PASSWORD = process.env.PASSWORD || process.env.TEST_PASSWORD;
+
+// launchd 등 스케줄러가 --auto로 실행할 때 — 카드 UI 없이 콘솔 로그만 찍고 바로 종료
+const AUTO_MODE = process.argv.includes('--auto');
 
 function upsertEnvValue(key, value) {
   const lines = existsSync(ENV_PATH) ? readFileSync(ENV_PATH, 'utf-8').split('\n') : [];
@@ -61,15 +65,16 @@ const TTY = process.stdout.isTTY && process.stdin.isTTY;
 // 대체 화면 버퍼(vim/htop 방식) — 마우스 스크롤로 이전 프레임(스크롤백) 못 보게 막음.
 // ?1049h만으론 일부 터미널(macOS 기본 터미널 포함)이 스크롤을 그냥 창 스크롤로
 // 흘려보내서, ?1007h(alternate scroll mode)도 같이 켜서 휠 스크롤을 화살표키로 바꿈
-if (TTY) process.stdout.write('\x1b[?1049h\x1b[?1007h');
+if (TTY && !AUTO_MODE) process.stdout.write('\x1b[?1049h\x1b[?1007h');
 
 // TTY일 땐 raw keypress로만 입력받음(아래 readKey/readLine) — readline Interface는 아예 안 만듦.
 // createInterface()는 만들어두기만 해도 내부적으로 같은 stdin에 자기 keypress 리스너를
 // 붙여서 몰래 자기만의 입력 버퍼를 쌓아두고, 나중에(resize 등으로) 그 버퍼를 프롬프트
 // 스타일로 다시 그리면서 화면을 덮어써버리는 문제가 있었음. !TTY(파이프 입력)일 때만 생성.
-const rl = TTY ? null : createInterface({ input: process.stdin, output: process.stdout });
+// AUTO_MODE는 입력을 아예 안 받으므로 둘 다 아님.
+const rl = (!TTY && !AUTO_MODE) ? createInterface({ input: process.stdin, output: process.stdout }) : null;
 const ask = (q) => rl.question(q);
-if (TTY) emitKeypressEvents(process.stdin);
+if (TTY && !AUTO_MODE) emitKeypressEvents(process.stdin);
 
 function exitApp() {
   if (TTY) process.stdout.write('\x1b[?1007l\x1b[?1049l'); // 대체 화면 버퍼 나가기 — 원래 화면(스크롤백)으로 복귀
@@ -448,21 +453,14 @@ async function doSettings() {
 async function doReflect() {
   ensureCreds();
 
-  const date = await cardAsk([contentRow('오늘 회고 작성', `${C.bold}오늘 회고 작성${C.reset}`)], '날짜 (엔터=오늘, YYYY-MM-DD)') || null;
+  const date = null;
+  drawCard([textLine('날짜', '오늘')], 'AI가 주제 생성 중...');
+  const topic = await generateTopic(getRecentTopics());
 
-  let topic = await cardAsk([textLine('날짜', date ?? '오늘')], '주제 (엔터=AI 자동 추천)');
-  if (!topic) {
-    drawCard([textLine('날짜', date ?? '오늘')], 'AI가 주제 생성 중...');
-    topic = await generateTopic(getRecentTopics());
-  }
-
-  let text = await cardAsk([textLine('날짜', date ?? '오늘'), textLine('주제', topic)], '내용 (엔터=AI 자동 작성)');
-  if (!text) {
-    drawCard([textLine('날짜', date ?? '오늘'), textLine('주제', topic)], 'AI가 내용 작성 중...');
-    text = await generateReflection(topic);
-    // 200자 미만이면 최대 2회 재시도 (뉴로우 회고는 200자 이상 요구)
-    for (let i = 0; i < 2 && text.length < 200; i++) text = await generateReflection(topic);
-  }
+  drawCard([textLine('날짜', date ?? '오늘'), textLine('주제', topic)], 'AI가 내용 작성 중...');
+  let text = await generateReflection(topic);
+  // 200자 미만이면 최대 2회 재시도 (뉴로우 회고는 200자 이상 요구)
+  for (let i = 0; i < 2 && text.length < 200; i++) text = await generateReflection(topic);
 
   const log = [];
   const pushLog = (l) => { log.push(l); if (log.length > CONTENT_ROWS) log.shift(); };
@@ -505,7 +503,7 @@ async function doReflect() {
 
 async function doReset() {
   ensureCreds({ gemini: false });
-  const dateLabel = (await cardAsk([contentRow('회고 초기화', `${C.bold}회고 초기화${C.reset}`)], '초기화할 날짜 (엔터=오늘)')) || todayKST();
+  const dateLabel = (await cardAsk([contentRow('회고 초기화', `${C.bold}회고 초기화${C.reset}`)], '초기화할 날짜 (엔터=오늘) — 초기화하면 같은 날 재작성 불가')) || todayKST();
   drawCard([textLine('날짜', dateLabel)], '초기화 중...');
   const result = await resetReflection(EMAIL, PASSWORD, dateLabel, true);
   removeSubmissionHistory(result.date);
@@ -560,8 +558,93 @@ async function doTopics() {
   await cardWait(topics.map((t, i) => contentRow(`${i + 1}. ${t}`, `${C.light}${i + 1}. ${t}${C.reset}`)));
 }
 
+// 오늘 계획에 넣을 할일 목록 (기존 할일 최대 5개를 09:00~10:00 사이에 균등 배분, 없으면 AI가 1개 생성)
+async function buildPlanTasks() {
+  const { tasks } = await getTasksWithToken(EMAIL, PASSWORD, true);
+  if (!tasks.length) return [{ name: await generateTaskTitle(), start: '09:00', end: '10:00' }];
+  const target = tasks.slice(0, 5);
+  const slotMin = Math.max(30, Math.floor(60 / target.length));
+  const fmt = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+  return target.map((t, i) => ({
+    name: t.title ?? t.taskTitle ?? t.name ?? `할일${i + 1}`,
+    start: fmt(9 * 60 + slotMin * i),
+    end: fmt(9 * 60 + slotMin * (i + 1)),
+  }));
+}
+
+// 계획 → 회고를 한 번의 로그인(에이전트 세션)으로 진행. 계획이 실패해도 회고는 계속 진행함
+async function runAutoAllCore({ say, setStatus }) {
+  setStatus('할일 불러오는 중...');
+  const planTasks = await buildPlanTasks();
+  say(`📋 계획 ${planTasks.length}건: ${planTasks.map((t) => t.name).join(', ')}`);
+
+  setStatus('AI가 주제 생성 중...');
+  const topic = await generateTopic(getRecentTopics());
+  say(`📌 ${topic}`);
+  setStatus('AI가 내용 작성 중...');
+  let text = await generateReflection(topic);
+  for (let i = 0; i < 2 && text.length < 200; i++) text = await generateReflection(topic);
+  say(`📝 (${text.length}자) ${truncateToWidth(text, 28)}`);
+
+  setStatus('뉴로우 접속 중...');
+  const session = await openAgentSession(EMAIL, PASSWORD, { silent: true, onProgress: async (step) => { setStatus(step); } });
+  let result;
+  try {
+    try {
+      setStatus('계획 정리 중...');
+      const planResult = await session.plan(planTasks);
+      say(planResult === 'already_done' ? '📅 계획 이미 완료됨' : '📅 계획 완료');
+    } catch (err) {
+      say(`⚠ 계획 실패 — 회고는 계속 진행: ${err.message}`);
+    }
+    setStatus('회고 정리 중...');
+    result = await session.reflect(text);
+  } finally {
+    await session.close();
+  }
+
+  const dateLabel = todayKST();
+  if (result !== 'already_done') {
+    addSubmissionHistory(dateLabel, topic, text);
+    addRecentTopic(topic);
+  }
+  return { result, topic, dateLabel };
+}
+
+async function doAutoAll() {
+  ensureCreds();
+
+  const log = [];
+  const pushLog = (l) => { log.push(l); if (log.length > CONTENT_ROWS) log.shift(); };
+  const renderLog = () => log.map(l => contentRow(l, `${C.light}${l}${C.reset}`));
+
+  const { result, topic, dateLabel } = await runAutoAllCore({
+    say: (l) => { pushLog(truncateToWidth(l, INNER_WIDTH)); drawCard(renderLog(), '진행 중...'); },
+    setStatus: (s) => drawCard(renderLog(), truncateToWidth(s, INNER_WIDTH)),
+  });
+
+  await cardWait([
+    contentRow(result === 'already_done' ? '이미 완료됨' : '계획+회고 완료', `${C.green}✅ ${result === 'already_done' ? '이미 완료됨' : '계획+회고 완료'}${C.reset}`),
+    blankContentRow(),
+    textLine('날짜', dateLabel),
+    textLine('주제', topic),
+  ]);
+}
+
+// launchd(cron)가 --auto로 호출하는 headless 버전 — 카드 UI 대신 콘솔 로그만 남김
+async function runAutoAllHeadless() {
+  ensureCreds();
+  console.log(`[${new Date().toISOString()}] 자동 계획+회고 시작`);
+  const { result, dateLabel } = await runAutoAllCore({
+    say: (l) => console.log(l),
+    setStatus: (s) => console.log(`▸ ${s}`),
+  });
+  console.log(`✅ ${result === 'already_done' ? '이미 완료됨' : '계획+회고 완료'} (${dateLabel})`);
+}
+
 const MENU = [
   { label: '오늘 회고 하기', run: doReflect },
+  { label: '오늘 계획+회고 자동 완성', run: doAutoAll },
   { label: '회고 초기화', run: doReset },
   { label: '할일 목록 보기', run: doTasks },
   { label: '할일 추가', run: doTaskAdd },
@@ -618,4 +701,10 @@ process.on('unhandledRejection', (err) => {
   process.exit(1);
 });
 
-main();
+if (AUTO_MODE) {
+  runAutoAllHeadless()
+    .then(() => process.exit(0))
+    .catch((err) => { console.error('❌ 자동 실행 실패:', err.message); process.exit(1); });
+} else {
+  main();
+}
