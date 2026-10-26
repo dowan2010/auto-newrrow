@@ -2,7 +2,23 @@
 
 뉴로우(dgsm.newrrow.com) 일일 계획·회고 자동화 CLI.
 
-## 설치
+## 데스크톱 앱 (macOS)
+
+터미널 없이 쓰려면 앱으로 설치.
+
+1. [Releases](https://github.com/dowan2010/newrrowBot/releases)에서 `Auto Newrrow-*.dmg` 다운로드 → 열어서 `Applications`로 드래그.
+2. 서명 안 된 앱이라 처음엔 막힘. **우클릭 → 열기 → 열기**. 그래도 "손상됨"이면 터미널에서:
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/Auto Newrrow.app"
+```
+
+3. 앱에서 이메일 / 비밀번호 / Gemini API 키 입력 → **저장**. 키체인 접근을 물으면 **항상 허용**.
+4. **지금 실행** 또는 **매일 자동 실행**을 켜기.
+
+Apple Silicon(M1~) 빌드. 비밀번호·키는 macOS 키체인으로 암호화되어 저장됨.
+
+## 설치 (터미널 CLI)
 
 ```bash
 npm i -g auto-newrrow

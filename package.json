@@ -30,10 +30,56 @@
   },
   "scripts": {
     "start": "node cli.js",
-    "postinstall": "playwright install chromium"
+    "postinstall": "playwright install chromium",
+    "app": "electron .",
+    "dist": "electron-builder --mac dmg"
   },
   "dependencies": {
     "dotenv": "^16.0.0",
     "playwright": "^1.44.0"
+  },
+  "devDependencies": {
+    "electron": "45.0.0",
+    "electron-builder": "26.18.0"
+  },
+  "main": "app/main.js",
+  "build": {
+    "appId": "com.daymark.autonewrrow",
+    "productName": "Auto Newrrow",
+    "files": [
+      "app/**",
+      "lib/client.js",
+      "lib/core.js",
+      "lib/ai.js",
+      "lib/data.js",
+      "lib/paths.js",
+      "lib/daily.js",
+      "package.json",
+      "!**/node_modules/**"
+    ],
+    "extraMetadata": {
+      "main": "app/main.js"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "category": "public.app-category.productivity",
+      "identity": "-",
+      "hardenedRuntime": false,
+      "icon": "build/icon.icns"
+    },
+    "dmg": {
+      "title": "Auto Newrrow"
+    },
+    "directories": {
+      "output": "dist"
+    }
   }
 }
