@@ -1,12 +1,30 @@
 {
-  "name": "daymark-cli",
+  "name": "auto-newrrow",
   "version": "1.0.0",
+  "description": "뉴로우(newrrow) 일일 계획·회고 자동화 CLI",
   "type": "module",
+  "license": "GPL-3.0-only",
   "bin": {
     "newrrow": "./cli.js"
   },
+  "files": [
+    "cli.js",
+    "automation.js",
+    "lib/",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": ["newrrow", "뉴로우", "automation", "cli", "playwright"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dowan2010/newrrowBot.git"
+  },
   "scripts": {
-    "start": "node cli.js"
+    "start": "node cli.js",
+    "postinstall": "playwright install chromium"
   },
   "dependencies": {
     "dotenv": "^16.0.0",

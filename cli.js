@@ -3,12 +3,13 @@
 // 실행: node cli.js
 // 최초 실행 시 "설정" 메뉴에서 GEMINI_API_KEY / EMAIL / PASSWORD 입력하면 .env에 저장됨
 import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { join } from 'path';
 import { config as loadEnv } from 'dotenv';
 import { createInterface } from 'readline/promises';
 import { emitKeypressEvents } from 'readline';
 import { execFile } from 'child_process';
+import { DATA_DIR } from './lib/paths.js';
+import { installDaily, uninstallDaily } from './lib/daily.js';
 
 // 터미널 벨 + (macOS면) 시스템 알림
 function notify(message) {
@@ -18,8 +19,7 @@ function notify(message) {
   }
 }
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const ENV_PATH = join(__dirname, '.env');
+const ENV_PATH = join(DATA_DIR, '.env');
 // newrrow는 전역 명령어라 어느 디렉토리에서 실행될지 모름 — cwd 기준이 아니라
 // 항상 이 스크립트가 있는 폴더의 .env를 명시적으로 읽음
 loadEnv({ path: ENV_PATH });
@@ -34,6 +34,16 @@ let PASSWORD = process.env.PASSWORD || process.env.TEST_PASSWORD;
 
 // launchd 등 스케줄러가 --auto로 실행할 때 — 카드 UI 없이 콘솔 로그만 찍고 바로 종료
 const AUTO_MODE = process.argv.includes('--auto');
+
+// 자동 실행(매일) 등록/해제 — 실행 후 바로 종료
+{
+  const args = process.argv.slice(2);
+  const i = args.indexOf('--install-daily');
+  try {
+    if (i !== -1) { console.log(installDaily(args[i + 1] && !args[i + 1].startsWith('-') ? args[i + 1] : undefined)); process.exit(0); }
+    if (args.includes('--uninstall-daily')) { console.log(uninstallDaily()); process.exit(0); }
+  } catch (err) { console.error('❌', err.message); process.exit(1); }
+}
 
 function upsertEnvValue(key, value) {
   const lines = existsSync(ENV_PATH) ? readFileSync(ENV_PATH, 'utf-8').split('\n') : [];
