@@ -598,7 +598,14 @@ async function runAutoAllCore({ say, setStatus }) {
       say(`⚠ 계획 실패 — 회고는 계속 진행: ${err.message}`);
     }
     setStatus('회고 정리 중...');
-    result = await session.reflect(text);
+    try {
+      result = await session.reflect(text);
+    } catch (err) {
+      // 같은 날 채팅은 이어서 진행되므로 한 번 더 시도 (일시 오류로 완료를 못 누른 채 끝나는 것 방지)
+      say(`⚠ 회고 1차 실패 — 재시도: ${err.message}`);
+      await new Promise((r) => setTimeout(r, 10000));
+      result = await session.reflect(text);
+    }
   } finally {
     await session.close();
   }
