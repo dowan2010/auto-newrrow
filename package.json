@@ -5,7 +5,7 @@
   "type": "module",
   "license": "GPL-3.0-only",
   "bin": {
-    "newrrow": "./cli.js"
+    "newrrow": "cli.js"
   },
   "files": [
     "cli.js",
@@ -17,7 +17,13 @@
   "engines": {
     "node": ">=18"
   },
-  "keywords": ["newrrow", "뉴로우", "automation", "cli", "playwright"],
+  "keywords": [
+    "newrrow",
+    "뉴로우",
+    "automation",
+    "cli",
+    "playwright"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/dowan2010/newrrowBot.git"
