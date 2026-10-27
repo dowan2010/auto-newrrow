@@ -13,7 +13,7 @@
 xattr -dr com.apple.quarantine "/Applications/Auto Newrrow.app"
 ```
 
-3. 앱에서 이메일 / 비밀번호 / Gemini API 키 입력 → **저장**. 키체인 접근을 물으면 **항상 허용**.
+3. 앱에서 이메일 / 비밀번호 입력, **AI 서비스(Gemini 또는 GPT)** 고르고 API 키 입력 → **저장**. 키체인 접근을 물으면 **항상 허용**.
 4. **지금 실행** 또는 **매일 자동 실행**을 켜기.
 
 Apple Silicon(M1~) 빌드. 비밀번호·키는 macOS 키체인으로 암호화되어 저장됨.
@@ -43,7 +43,9 @@ newrrow
 
 첫 실행 → 메뉴 **설정 (API 키 / 계정)** → 입력 → 저장됨.
 
-- `GEMINI_API_KEY` — Google AI Studio 발급
+- AI 키 (둘 중 하나) — 설정 메뉴에서 공급자 선택
+  - `GEMINI_API_KEY` — Google AI Studio 발급 (기본)
+  - `OPENAI_API_KEY` — OpenAI 발급, GPT 사용 (`AI_PROVIDER=openai`, 모델은 `OPENAI_MODEL`로 변경, 기본 `gpt-4o-mini`)
 - `EMAIL` / `PASSWORD` — 뉴로우 계정
 
 설정은 전역 설치면 `~/.auto-newrrow/`, 소스 실행이면 프로젝트 폴더에 저장됨.
@@ -69,7 +71,7 @@ newrrow --uninstall-daily       # 해제
 | 5 | 할일 추가 |
 | 6 | 일정 등록 |
 | 7 | 주제 추천만 보기 |
-| 8 | 설정 (API 키 / 계정) |
+| 8 | 설정 (AI 서비스 / API 키 / 계정) |
 | 0 | 종료 |
 
 ## 주의

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Notification, nativeTheme } from 'electron';
+import { app, BrowserWindow, ipcMain, Notification, nativeTheme, shell } from 'electron';
 nativeTheme.themeSource = 'light';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
@@ -16,6 +16,7 @@ const { openLoginWindow } = await import('./login.js');
 const { createClient, todayKST } = await import('../lib/client.js');
 const { runDaily } = await import('../lib/core.js');
 const { installDaily, uninstallDaily, isDailyInstalled } = await import('../lib/daily.js');
+const { checkForUpdate, downloadAsset } = await import('./update.js');
 
 let win = null;
 let running = false;
@@ -26,9 +27,12 @@ const stamp = () => new Date().toLocaleTimeString('en-GB', { hour12: false });
 async function runJob(emit) {
   if (running) throw new Error('이미 실행 중이에요');
   const s = loadSettings();
-  const missing = [!s.email && '이메일', !s.password && '비밀번호', !s.geminiKey && 'Gemini API 키'].filter(Boolean);
+  const useGpt = s.aiProvider === 'openai';
+  const missing = [!s.email && '이메일', !s.password && '비밀번호', (useGpt ? !s.openaiKey : !s.geminiKey) && (useGpt ? 'OpenAI API 키' : 'Gemini API 키')].filter(Boolean);
   if (missing.length) throw new Error(`설정이 비어 있어요: ${missing.join(', ')}`);
+  process.env.AI_PROVIDER = useGpt ? 'openai' : 'gemini';
   process.env.GEMINI_API_KEY = s.geminiKey;
+  process.env.OPENAI_API_KEY = s.openaiKey;
   running = true;
   send('status', { running: true });
   let session;
@@ -111,11 +115,12 @@ if (AUTO || SELFTEST) {
 
   ipcMain.handle('settings:get', () => {
     const s = loadSettings();
-    return { email: s.email, hasPassword: !!s.password, hasGeminiKey: !!s.geminiKey, dailyTime: s.dailyTime, lastRun: s.lastRun ?? null };
+    return { email: s.email, hasPassword: !!s.password, hasGeminiKey: !!s.geminiKey, hasOpenaiKey: !!s.openaiKey, aiProvider: s.aiProvider, dailyTime: s.dailyTime, lastRun: s.lastRun ?? null };
   });
   ipcMain.handle('settings:save', (_e, patch) => {
     const clean = {};
-    for (const k of ['email', 'password', 'geminiKey', 'dailyTime']) if (typeof patch[k] === 'string' && patch[k].trim() !== '') clean[k] = patch[k].trim();
+    for (const k of ['email', 'password', 'geminiKey', 'openaiKey', 'dailyTime']) if (typeof patch[k] === 'string' && patch[k].trim() !== '') clean[k] = patch[k].trim();
+    if (patch.aiProvider === 'gemini' || patch.aiProvider === 'openai') clean.aiProvider = patch.aiProvider;
     saveSettings(clean);
     return true;
   });
@@ -134,6 +139,21 @@ if (AUTO || SELFTEST) {
       if (on) { saveSettings({ dailyTime: time }); return { ok: true, message: installDaily(time, launchSpec()) }; }
       return { ok: true, message: uninstallDaily() };
     } catch (err) { return { ok: false, message: err.message }; }
+  });
+
+  let lastUpdate = null;
+  ipcMain.handle('update:check', async () => {
+    lastUpdate = await checkForUpdate(app.getVersion());
+    return { version: app.getVersion(), update: lastUpdate?.hasUpdate ? { latest: lastUpdate.latest, canInstall: !!lastUpdate.assetUrl, pageUrl: lastUpdate.pageUrl } : null };
+  });
+  ipcMain.handle('update:install', async () => {
+    try {
+      if (!lastUpdate?.hasUpdate) throw new Error('받을 업데이트가 없어요');
+      if (!lastUpdate.assetUrl) { await shell.openExternal(lastUpdate.pageUrl); return { ok: true, opened: 'page' }; }
+      const file = await downloadAsset(lastUpdate.assetUrl, lastUpdate.assetName, app.getPath('downloads'), (p) => send('update:progress', p));
+      await shell.openPath(file);
+      return { ok: true, opened: 'dmg', file };
+    } catch (err) { return { ok: false, error: err.message }; }
   });
 
   app.whenReady().then(createWindow);

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // auto-newrrow CLI — 뉴로우 회고 자동화 (터미널에서 직접 실행)
 // 실행: node cli.js
-// 최초 실행 시 "설정" 메뉴에서 GEMINI_API_KEY / EMAIL / PASSWORD 입력하면 .env에 저장됨
+// 최초 실행 시 "설정" 메뉴에서 AI API 키(Gemini 또는 GPT) / EMAIL / PASSWORD 입력하면 .env에 저장됨
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { config as loadEnv } from 'dotenv';
@@ -28,7 +28,7 @@ import { resetReflection, getTasksWithToken, browserCreateTask, browserCreateSch
 import { submitReflection, openAgentSession } from './lib/agent.js';
 import { runDaily } from './lib/core.js';
 import { addSubmissionHistory, removeSubmissionHistory, addRecentTopic, getRecentTopics } from './lib/data.js';
-import { generateTopic, generateReflection, generateWithRetry } from './lib/ai.js';
+import { generateTopic, generateReflection, generateWithRetry, aiProvider, aiKeyEnvName } from './lib/ai.js';
 
 let EMAIL = process.env.EMAIL || process.env.TEST_EMAIL;
 let PASSWORD = process.env.PASSWORD || process.env.TEST_PASSWORD;
@@ -62,7 +62,7 @@ function mask(v) {
 
 function ensureCreds({ gemini = true, account = true } = {}) {
   const missing = [];
-  if (gemini && !process.env.GEMINI_API_KEY) missing.push('GEMINI_API_KEY');
+  if (gemini && !process.env[aiKeyEnvName()]) missing.push(aiKeyEnvName());
   if (account && !EMAIL) missing.push('EMAIL');
   if (account && !PASSWORD) missing.push('PASSWORD');
   if (missing.length) throw new Error(`설정 안 됨: ${missing.join(', ')} — "설정" 메뉴에서 먼저 입력해줘`);
@@ -433,7 +433,8 @@ function errorLines(err) {
 
 async function doSettings() {
   const currentLines = () => [
-    textLine('GEMINI_API_KEY', mask(process.env.GEMINI_API_KEY)),
+    textLine('AI', aiProvider() === 'openai' ? 'GPT (OpenAI)' : 'Gemini'),
+    textLine(aiKeyEnvName(), mask(process.env[aiKeyEnvName()])),
     textLine('EMAIL', mask(EMAIL)),
     textLine('PASSWORD', mask(PASSWORD)),
     textLine('HEADLESS', process.env.HEADLESS !== 'false' ? '숨김' : '보임'),
@@ -441,8 +442,13 @@ async function doSettings() {
     contentRow('엔터만 치면 값 유지', `${C.dim}엔터만 치면 값 유지${C.reset}`),
   ];
 
-  const gemini = await cardAsk(currentLines(), '새 GEMINI_API_KEY (엔터=유지)');
-  if (gemini) upsertEnvValue('GEMINI_API_KEY', gemini);
+  const prov = (await cardAsk(currentLines(), 'AI 공급자 1=Gemini 2=GPT (엔터=유지)')).trim();
+  if (prov === '1') upsertEnvValue('AI_PROVIDER', 'gemini');
+  else if (prov === '2') upsertEnvValue('AI_PROVIDER', 'openai');
+
+  const keyName = aiKeyEnvName();
+  const key = await cardAsk(currentLines(), `새 ${keyName} (엔터=유지)`);
+  if (key) upsertEnvValue(keyName, key);
 
   const email = await cardAsk(currentLines(), '새 뉴로우 EMAIL (엔터=유지)');
   if (email) { upsertEnvValue('EMAIL', email); EMAIL = email; }

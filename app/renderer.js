@@ -59,6 +59,8 @@ function clearLog() {
 
 const todayStr = () => new Date().toLocaleDateString('sv');
 let dailyOn = false;
+let provider = 'gemini';
+let saved = { gemini: false, openai: false };
 
 function setChip(state, text) {
   $('chip').className = `chip ${state}`;
@@ -75,6 +77,15 @@ function showLast(lr) {
   else setChip('', '오늘 미실행');
 }
 
+function setProvider(p) {
+  provider = p;
+  for (const b of $('provSeg').children) b.classList.toggle('on', b.dataset.p === p);
+  $('aiKeyLabel').textContent = p === 'openai' ? 'OpenAI API 키' : 'Gemini API 키';
+  $('aiKey').placeholder = saved[p] ? '••••••••  (저장됨)' : 'API 키';
+  $('aiKey').value = '';
+}
+$('provSeg').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) setProvider(b.dataset.p); });
+
 function setSeg(on) {
   dailyOn = on;
   for (const b of $('seg').children) b.classList.toggle('on', (b.dataset.on === '1') === on);
@@ -84,7 +95,8 @@ async function init() {
   const s = await window.api.getSettings();
   $('email').value = s.email;
   $('password').placeholder = s.hasPassword ? '••••••••  (저장됨)' : '비밀번호';
-  $('geminiKey').placeholder = s.hasGeminiKey ? '••••••••  (저장됨)' : 'API 키';
+  saved = { gemini: s.hasGeminiKey, openai: s.hasOpenaiKey };
+  setProvider(s.aiProvider || 'gemini');
   showLast(s.lastRun);
   const d = await window.api.getDaily();
   setSeg(d.on);
@@ -92,8 +104,8 @@ async function init() {
 }
 
 $('save').addEventListener('click', async () => {
-  await window.api.saveSettings({ email: $('email').value, password: $('password').value, geminiKey: $('geminiKey').value });
-  $('password').value = ''; $('geminiKey').value = '';
+  await window.api.saveSettings({ email: $('email').value, password: $('password').value, aiProvider: provider, [provider === 'openai' ? 'openaiKey' : 'geminiKey']: $('aiKey').value });
+  $('password').value = ''; $('aiKey').value = '';
   $('saveMsg').textContent = '저장했어요';
   setTimeout(() => ($('saveMsg').textContent = ''), 2500);
   init();
@@ -123,3 +135,21 @@ window.api.onStatus((s) => {
   if (s.running) setChip('run', '실행 중');
 });
 init();
+
+// 업데이트 확인 — 새 버전이 있으면 알림 띄우고, 버튼으로 dmg를 받아 열어 줌
+(async () => {
+  const info = await window.api.checkUpdate();
+  $('ver').textContent = `버전 ${info.version}`;
+  if (!info.update) return;
+  $('updateText').textContent = `새 버전 ${info.update.latest}이 있어요`;
+  $('update').classList.add('show');
+  window.api.onUpdateProgress((p) => { $('updateBtn').textContent = `받는 중 ${p}%`; });
+  $('updateBtn').addEventListener('click', async () => {
+    $('updateBtn').disabled = true;
+    $('updateBtn').textContent = '받는 중…';
+    const r = await window.api.installUpdate();
+    if (!r.ok) { $('updateBtn').disabled = false; $('updateBtn').textContent = '다시 시도'; $('updateText').textContent = r.error; return; }
+    $('updateText').textContent = r.opened === 'dmg' ? '열린 창에서 Applications로 끌어다 덮어쓰세요' : '릴리스 페이지를 열었어요';
+    $('updateBtn').style.display = 'none';
+  });
+})();
