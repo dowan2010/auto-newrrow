@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, Notification, nativeTheme, shell } from 'electron';
 nativeTheme.themeSource = 'light';
 import { dirname, join } from 'path';
+import { appendFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -80,8 +81,7 @@ function createWindow() {
   win = new BrowserWindow({
     width: 820, height: 900, minWidth: 560, minHeight: 640,
     title: 'Auto Newrrow',
-    titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 20, y: 20 },
+    ...(process.platform === 'darwin' ? { titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 20, y: 20 } } : { autoHideMenuBar: true }),
     backgroundColor: '#ffffff',
     webPreferences: { preload: join(here, 'preload.cjs'), contextIsolation: true, sandbox: true },
   });
@@ -89,9 +89,13 @@ function createWindow() {
 }
 
 if (AUTO || SELFTEST) {
+  const logFile = join(app.getPath('userData'), 'auto.log');
+  const origLog = console.log, origErr = console.error;
+  const tee = (fn) => (...a) => { fn(...a); try { appendFileSync(logFile, a.join(' ') + '\n'); } catch {} };
+  console.log = tee(origLog); console.error = tee(origErr);
   // 키체인 팝업 등으로 아무도 못 보는 곳에서 영원히 멈추는 것을 방지
   setTimeout(() => {
-    console.error('❌ 자동 실행 시간 초과 (15분) — 키체인 접근 팝업이 떠 있는지 확인해 주세요');
+    console.error('❌ 자동 실행 시간 초과 (15분) — 키체인 접근 팝업 등으로 멈췄는지 확인해 주세요');
     if (AUTO) notify('Auto Newrrow 실패', '15분 안에 끝나지 않았어요. 앱을 열어 키체인 접근을 "항상 허용"해 주세요');
     setTimeout(() => app.exit(1), 1000);
   }, 15 * 60 * 1000).unref();

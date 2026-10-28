@@ -1,0 +1,38 @@
+name: Windows build
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --ignore-scripts
+      - run: npx electron-builder --win nsis --x64 --publish never
+      - name: 앱 기동 확인 (설정이 비어 있다는 메시지가 로그에 남으면 정상)
+        shell: pwsh
+        run: |
+          Start-Process -FilePath "dist/win-unpacked/Auto Newrrow.exe" -ArgumentList "--selftest" -Wait
+          $log = Join-Path $env:APPDATA "auto-newrrow/auto.log"
+          if (-not (Test-Path $log)) { Write-Error "auto.log 없음 — 앱이 기동하지 못함"; exit 1 }
+          Get-Content $log
+          if (-not (Select-String -Path $log -Pattern "설정이 비어 있어요" -Quiet)) { Write-Error "예상한 메시지 없음"; exit 1 }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: dist/*.exe
+      - name: 릴리스에 첨부 (태그로 실행한 경우)
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.ref_name }}" dist/*.exe --clobber

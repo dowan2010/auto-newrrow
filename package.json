@@ -73,13 +73,33 @@
       "category": "public.app-category.productivity",
       "identity": "-",
       "hardenedRuntime": false,
-      "icon": "build/icon.icns"
+      "icon": "build/icon.icns",
+      "artifactName": "Auto-Newrrow-${version}-${arch}.${ext}"
     },
     "dmg": {
       "title": "Auto Newrrow"
     },
     "directories": {
       "output": "dist"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "artifactName": "Auto-Newrrow-${version}-win-${arch}.${ext}",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "deleteAppDataOnUninstall": false,
+      "shortcutName": "Auto Newrrow"
     }
   }
 }

@@ -1,3 +1,4 @@
+document.documentElement.dataset.platform = window.api.platform;
 const $ = (id) => document.getElementById(id);
 const log = $('log');
 
