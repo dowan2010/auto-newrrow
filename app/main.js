@@ -171,7 +171,14 @@ if (AUTO || SELFTEST) {
       }
       if (!lastUpdate.assetUrl) { await shell.openExternal(lastUpdate.pageUrl); return { ok: true, opened: 'page' }; }
       const file = await downloadAsset(lastUpdate.assetUrl, lastUpdate.assetName, app.getPath('downloads'), (p) => send('update:progress', p));
-      await shell.openPath(file);
+      const openErr = await shell.openPath(file);
+      if (openErr) throw new Error(openErr);
+      if (process.platform === 'win32') {
+        // 설치 프로그램이 실행 중인 앱 파일을 교체할 수 있게 앱을 종료함 (설치가 끝나면 설치 프로그램이 다시 실행해 줌)
+        send('update:progress', 'installing');
+        setTimeout(() => app.quit(), 1500);
+        return { ok: true, opened: 'replace' };
+      }
       return { ok: true, opened: 'dmg', file };
     } catch (err) { return { ok: false, error: err.message }; }
   });
