@@ -170,3 +170,11 @@ init();
     $('updateBtn').style.display = 'none';
   });
 })();
+
+// 도움말
+const help = $('help');
+const setHelp = (on) => { help.classList.toggle('show', on); document.body.style.overflow = on ? 'hidden' : ''; if (on) help.scrollTop = 0; };
+$('helpBtn').addEventListener('click', () => setHelp(true));
+$('helpClose').addEventListener('click', () => setHelp(false));
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') setHelp(false); });
+help.addEventListener('click', (e) => { const a = e.target.closest('a[data-url]'); if (a) window.api.openExternal(a.dataset.url); });

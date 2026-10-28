@@ -147,6 +147,13 @@ if (AUTO || SELFTEST) {
     } catch (err) { return { ok: false, message: err.message }; }
   });
 
+  // 도움말의 외부 링크 — 허용된 주소만 열기
+  const ALLOWED_LINKS = [/^https:\/\/aistudio\.google\.com\//, /^https:\/\/platform\.openai\.com\//, /^https:\/\/github\.com\/dowan2010\/auto-newrrow\//];
+  ipcMain.handle('open:external', (_e, url) => {
+    if (typeof url === 'string' && ALLOWED_LINKS.some((re) => re.test(url))) { shell.openExternal(url); return true; }
+    return false;
+  });
+
   let lastUpdate = null;
   ipcMain.handle('update:check', async () => {
     lastUpdate = await checkForUpdate(app.getVersion());
