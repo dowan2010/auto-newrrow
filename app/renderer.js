@@ -206,3 +206,11 @@ $('modalCopy').addEventListener('click', async () => {
   try { await navigator.clipboard.writeText($('modalBody').textContent); $('modalCopy').textContent = '복사됨'; }
   catch { const s = window.getSelection(); const rg = document.createRange(); rg.selectNodeContents($('modalBody')); s.removeAllRanges(); s.addRange(rg); $('modalCopy').textContent = '선택됨 (Cmd+C)'; }
 });
+
+// dmg 안에서 실행 중이면 안내 (이 상태에선 업데이트·자동 실행이 안 됨)
+(async () => {
+  const env = await window.api.envInfo();
+  if (!env.fromDmg) return;
+  $('dmgWarn').classList.add('show');
+  $('dmgWarnBtn').addEventListener('click', () => window.api.openApplications());
+})();

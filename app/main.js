@@ -151,6 +151,11 @@ if (AUTO || SELFTEST) {
     } catch (err) { return { ok: false, message: err.message }; }
   });
 
+  // dmg 안(읽기 전용)이나 임시 격리 경로에서 실행 중인지 — 이 상태에선 스스로 업데이트/자동 실행 등록을 할 수 없음
+  const FROM_DMG = process.platform === 'darwin' && app.isPackaged && /^\/Volumes\/|\/AppTranslocation\//.test(process.execPath);
+  ipcMain.handle('env:info', () => ({ fromDmg: FROM_DMG }));
+  ipcMain.handle('env:openApplications', () => shell.openPath('/Applications'));
+
   // 도움말의 외부 링크 — 허용된 주소만 열기
   const ALLOWED_LINKS = [/^https:\/\/aistudio\.google\.com\//, /^https:\/\/platform\.openai\.com\//, /^https:\/\/github\.com\/dowan2010\/auto-newrrow\//];
   ipcMain.handle('open:external', (_e, url) => {
@@ -161,6 +166,7 @@ if (AUTO || SELFTEST) {
   let lastUpdate = null;
   ipcMain.handle('update:check', async () => {
     lastUpdate = await checkForUpdate(app.getVersion());
+    if (FROM_DMG) return { version: app.getVersion(), update: null };
     return { version: app.getVersion(), update: lastUpdate?.hasUpdate ? { latest: lastUpdate.latest, canInstall: !!lastUpdate.assetUrl, pageUrl: lastUpdate.pageUrl } : null };
   });
   ipcMain.handle('update:install', async () => {
