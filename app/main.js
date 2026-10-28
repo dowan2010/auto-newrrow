@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Notification, nativeTheme, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, Notification, nativeTheme, shell, screen } from 'electron';
 nativeTheme.themeSource = 'light';
 import { dirname, join } from 'path';
 import { appendFileSync } from 'fs';
@@ -79,12 +79,13 @@ function notify(title, body) {
 
 function createWindow() {
   win = new BrowserWindow({
-    width: 820, height: 900, minWidth: 560, minHeight: 640,
+    show: false, width: Math.min(1280, screen.getPrimaryDisplay().workAreaSize.width), height: Math.min(900, screen.getPrimaryDisplay().workAreaSize.height), minWidth: 560, minHeight: 640,
     title: 'Auto Newrrow',
     ...(process.platform === 'darwin' ? { titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 20, y: 20 } } : { autoHideMenuBar: true }),
     backgroundColor: '#ffffff',
     webPreferences: { preload: join(here, 'preload.cjs'), contextIsolation: true, sandbox: true },
   });
+  win.once('ready-to-show', () => { win.maximize(); win.show(); });
   win.loadFile(join(here, 'index.html'));
 }
 

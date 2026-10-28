@@ -2,21 +2,27 @@
 
 뉴로우(dgsm.newrrow.com) 일일 계획·회고 자동화 CLI.
 
-## 데스크톱 앱 (macOS)
+## 데스크톱 앱 (macOS / Windows)
 
-터미널 없이 쓰려면 앱으로 설치.
+터미널 없이 쓰려면 앱으로 설치. [Releases](https://github.com/dowan2010/auto-newrrow/releases)에서 받기.
 
-1. [Releases](https://github.com/dowan2010/newrrowBot/releases)에서 `Auto Newrrow-*.dmg` 다운로드 → 열어서 `Applications`로 드래그.
-2. 서명 안 된 앱이라 처음엔 막힘. **우클릭 → 열기 → 열기**. 그래도 "손상됨"이면 터미널에서:
+**macOS** (`Auto-Newrrow-*-arm64.dmg`, Apple Silicon)
+1. dmg 열어서 `Applications`로 드래그.
+2. 서명 안 된 앱이라 처음엔 막힘. **우클릭 → 열기 → 열기**. 그래도 "손상됨"이면:
 
 ```bash
 xattr -dr com.apple.quarantine "/Applications/Auto Newrrow.app"
 ```
 
-3. 앱에서 이메일 / 비밀번호 입력, **AI 서비스(Gemini 또는 GPT)** 고르고 API 키 입력 → **저장**. 키체인 접근을 물으면 **항상 허용**.
-4. **지금 실행** 또는 **매일 자동 실행**을 켜기.
+**Windows** (`Auto-Newrrow-*-win-x64.exe`)
+1. 설치 파일 실행. 서명 안 된 앱이라 SmartScreen이 막으면 **추가 정보 → 실행**.
+2. 설치되면 바로 실행됨 (설치 위치 선택 없음, 시작 메뉴에 등록).
 
-Apple Silicon(M1~) 빌드. 비밀번호·키는 macOS 키체인으로 암호화되어 저장됨.
+**공통**
+- 앱에서 이메일 / 비밀번호 입력, **AI 서비스(Gemini 또는 GPT)** 고르고 API 키 입력 → **저장**. (macOS는 키체인 접근을 물으면 **항상 허용**)
+- **지금 실행** 또는 **매일 자동 실행**을 켜기. 자동 실행은 컴퓨터가 켜져 있어야 함 (Windows는 로그인된 상태).
+- 비밀번호·키는 macOS 키체인 / Windows 자격 증명 보호로 암호화되어 저장됨.
+- 새 버전이 나오면 앱 상단에 알림이 뜨고, 버튼 한 번으로 받아서 열어줌.
 
 ## 설치 (터미널 CLI)
 
