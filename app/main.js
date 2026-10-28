@@ -17,7 +17,7 @@ const { openLoginWindow } = await import('./login.js');
 const { createClient, todayKST } = await import('../lib/client.js');
 const { runDaily } = await import('../lib/core.js');
 const { installDaily, uninstallDaily, isDailyInstalled } = await import('../lib/daily.js');
-const { checkForUpdate, downloadAsset } = await import('./update.js');
+const { checkForUpdate, downloadAsset, currentBundlePath, canReplaceInPlace, stageInPlaceUpdate } = await import('./update.js');
 
 let win = null;
 let running = false;
@@ -154,6 +154,13 @@ if (AUTO || SELFTEST) {
   ipcMain.handle('update:install', async () => {
     try {
       if (!lastUpdate?.hasUpdate) throw new Error('받을 업데이트가 없어요');
+      const bundle = app.isPackaged ? currentBundlePath() : null;
+      if (lastUpdate.zipUrl && canReplaceInPlace(bundle)) {
+        await stageInPlaceUpdate(lastUpdate.zipUrl, lastUpdate.zipName, bundle, (p) => send('update:progress', p));
+        send('update:progress', 'installing');
+        setTimeout(() => app.quit(), 800); // 종료되면 교체 스크립트가 앱을 바꾸고 다시 실행함
+        return { ok: true, opened: 'replace' };
+      }
       if (!lastUpdate.assetUrl) { await shell.openExternal(lastUpdate.pageUrl); return { ok: true, opened: 'page' }; }
       const file = await downloadAsset(lastUpdate.assetUrl, lastUpdate.assetName, app.getPath('downloads'), (p) => send('update:progress', p));
       await shell.openPath(file);

@@ -144,12 +144,16 @@ init();
   if (!info.update) return;
   $('updateText').textContent = `새 버전 ${info.update.latest}이 있어요`;
   $('update').classList.add('show');
-  window.api.onUpdateProgress((p) => { $('updateBtn').textContent = `받는 중 ${p}%`; });
+  window.api.onUpdateProgress((p) => {
+    if (p === 'installing') { $('updateText').textContent = '설치 중이에요. 앱이 잠시 꺼졌다 다시 켜져요'; $('updateBtn').style.display = 'none'; }
+    else $('updateBtn').textContent = `받는 중 ${p}%`;
+  });
   $('updateBtn').addEventListener('click', async () => {
     $('updateBtn').disabled = true;
     $('updateBtn').textContent = '받는 중…';
     const r = await window.api.installUpdate();
     if (!r.ok) { $('updateBtn').disabled = false; $('updateBtn').textContent = '다시 시도'; $('updateText').textContent = r.error; return; }
+    if (r.opened === 'replace') return;
     $('updateText').textContent = r.opened === 'dmg' ? '열린 창에서 Applications로 끌어다 덮어쓰세요' : '릴리스 페이지를 열었어요';
     $('updateBtn').style.display = 'none';
   });
