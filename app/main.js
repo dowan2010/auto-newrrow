@@ -39,12 +39,12 @@ async function runJob(emit) {
   let session;
   try {
     try {
-      session = await openLoginWindow(s.email, s.password, (m) => emit(`▸ ${m}`));
+      session = await openLoginWindow(s.email, s.password, (m) => emit(`▸ ${m}`), { show: !!s.showBrowser });
     } catch (err) {
       // 앱 첫 실행 직후엔 내장 네트워크 서비스가 한 번 재시작되며 로그인이 실패할 수 있어 1회 재시도
       emit(`⚠ 로그인 재시도: ${err.message}`);
       await new Promise((r) => setTimeout(r, 3000));
-      session = await openLoginWindow(s.email, s.password, (m) => emit(`▸ ${m}`));
+      session = await openLoginWindow(s.email, s.password, (m) => emit(`▸ ${m}`), { show: !!s.showBrowser });
     }
     const client = createClient({ getToken: session.getToken, refreshToken: session.refreshToken });
     const out = await runDaily(client, {
@@ -103,7 +103,7 @@ if (AUTO || SELFTEST) {
   app.whenReady().then(async () => {
     let code = 0;
     try {
-      if (SELFTEST && process.env.SELFTEST_EMAIL) saveSettings({ email: process.env.SELFTEST_EMAIL, password: process.env.SELFTEST_PASSWORD, geminiKey: process.env.SELFTEST_GEMINI });
+      if (SELFTEST && process.env.SELFTEST_EMAIL) saveSettings({ email: process.env.SELFTEST_EMAIL, password: process.env.SELFTEST_PASSWORD, geminiKey: process.env.SELFTEST_GEMINI, showBrowser: process.env.SELFTEST_SHOW === '1' });
       console.log(`[${new Date().toISOString()}] 자동 계획+회고 시작`);
       const out = await runJob((l) => console.log(l));
       if (AUTO) notify('Auto Newrrow', out.result === 'already_done' ? '오늘은 이미 완료되어 있어요' : '오늘 계획·회고를 완료했어요');
@@ -120,12 +120,13 @@ if (AUTO || SELFTEST) {
 
   ipcMain.handle('settings:get', () => {
     const s = loadSettings();
-    return { email: s.email, hasPassword: !!s.password, hasGeminiKey: !!s.geminiKey, hasOpenaiKey: !!s.openaiKey, aiProvider: s.aiProvider, dailyTime: s.dailyTime, lastRun: s.lastRun ?? null };
+    return { email: s.email, hasPassword: !!s.password, hasGeminiKey: !!s.geminiKey, hasOpenaiKey: !!s.openaiKey, aiProvider: s.aiProvider, showBrowser: !!s.showBrowser, dailyTime: s.dailyTime, lastRun: s.lastRun ?? null };
   });
   ipcMain.handle('settings:save', (_e, patch) => {
     const clean = {};
     for (const k of ['email', 'password', 'geminiKey', 'openaiKey', 'dailyTime']) if (typeof patch[k] === 'string' && patch[k].trim() !== '') clean[k] = patch[k].trim();
     if (patch.aiProvider === 'gemini' || patch.aiProvider === 'openai') clean.aiProvider = patch.aiProvider;
+    if (typeof patch.showBrowser === 'boolean') clean.showBrowser = patch.showBrowser;
     saveSettings(clean);
     return true;
   });

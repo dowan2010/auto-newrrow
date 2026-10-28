@@ -4,7 +4,7 @@ const HOME_URL = 'https://dgsm.newrrow.com/csr-platform/agent-home?mode=reflecti
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // 보이지 않는 창으로 로그인해서 API 토큰을 확보 (Playwright 없이 Electron 내장 Chromium 사용)
-export async function openLoginWindow(email, password, onProgress = () => {}) {
+export async function openLoginWindow(email, password, onProgress = () => {}, { show = false } = {}) {
   const ses = session.fromPartition(`login-${Date.now()}`);
   let token = null;
   let loginPosted = false;
@@ -19,7 +19,7 @@ export async function openLoginWindow(email, password, onProgress = () => {}) {
   });
 
   const win = new BrowserWindow({
-    show: false, width: 1280, height: 800,
+    show, width: 1280, height: 800, title: 'Auto Newrrow — 뉴로우 로그인',
     webPreferences: { session: ses, backgroundThrottling: false, contextIsolation: true },
   });
   const close = () => { if (!win.isDestroyed()) win.destroy(); };

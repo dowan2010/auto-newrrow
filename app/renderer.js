@@ -87,6 +87,17 @@ function setProvider(p) {
 }
 $('provSeg').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) setProvider(b.dataset.p); });
 
+function setShow(on) {
+  for (const b of $('showSeg').children) b.classList.toggle('on', (b.dataset.s === '1') === on);
+}
+$('showSeg').addEventListener('click', async (e) => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  const on = b.dataset.s === '1';
+  await window.api.saveSettings({ showBrowser: on });
+  setShow(on);
+});
+
 function setSeg(on) {
   dailyOn = on;
   for (const b of $('seg').children) b.classList.toggle('on', (b.dataset.on === '1') === on);
@@ -98,6 +109,7 @@ async function init() {
   $('password').placeholder = s.hasPassword ? '••••••••  (저장됨)' : '비밀번호';
   saved = { gemini: s.hasGeminiKey, openai: s.hasOpenaiKey };
   setProvider(s.aiProvider || 'gemini');
+  setShow(!!s.showBrowser);
   showLast(s.lastRun);
   const d = await window.api.getDaily();
   setSeg(d.on);

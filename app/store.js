@@ -10,7 +10,7 @@ const dec = (v) => (v && typeof v === 'object' && v.enc ? safeStorage.decryptStr
 
 export function loadSettings() {
   const raw = existsSync(file()) ? JSON.parse(readFileSync(file(), 'utf-8')) : {};
-  const out = { email: '', password: '', geminiKey: '', openaiKey: '', aiProvider: 'gemini', dailyTime: '08:30', ...raw };
+  const out = { email: '', password: '', geminiKey: '', openaiKey: '', aiProvider: 'gemini', dailyTime: '08:30', showBrowser: false, ...raw };
   for (const k of SECRET) out[k] = dec(raw[k]) ?? '';
   return out;
 }
