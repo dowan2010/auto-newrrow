@@ -26,7 +26,7 @@ function finishCurrent() {
   current = null;
 }
 
-function addLog({ time, text }) {
+function addLog({ time, text, detail }) {
   const empty = log.querySelector('.empty');
   if (empty) empty.remove();
   let el;
@@ -47,7 +47,18 @@ function addLog({ time, text }) {
     el = row('warn', time, '!', text.replace(/^⚠\s*/, ''));
   } else {
     const icon = [...text][0];
-    el = row('info', time, '•', ICONS[icon] ? `${LABEL[icon]}  ${text.slice(icon.length).trim()}` : text);
+    const body = ICONS[icon] ? text.slice(icon.length).trim() : text;
+    const label = ICONS[icon] && !body.startsWith(LABEL[icon]) ? `${LABEL[icon]}  ` : '';
+    el = row('info', time, '•', ICONS[icon] ? `${label}${body}` : text);
+    if (detail) {
+      el.classList.add('click');
+      el.title = '클릭해서 전체 보기';
+      const more = document.createElement('span');
+      more.className = 'more';
+      more.textContent = '전체 보기 ›';
+      el.querySelector('.x').appendChild(more);
+      el.addEventListener('click', () => openModal(LABEL[icon] ?? '상세', detail));
+    }
   }
   log.appendChild(el);
   log.scrollTop = log.scrollHeight;
@@ -178,3 +189,20 @@ $('helpBtn').addEventListener('click', () => setHelp(true));
 $('helpClose').addEventListener('click', () => setHelp(false));
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') setHelp(false); });
 help.addEventListener('click', (e) => { const a = e.target.closest('a[data-url]'); if (a) window.api.openExternal(a.dataset.url); });
+
+// 로그 상세 보기 (본문 전체 등)
+const modal = $('modal');
+function openModal(title, body) {
+  $('modalTitle').textContent = title;
+  $('modalBody').textContent = body;
+  $('modalCopy').textContent = '복사';
+  modal.classList.add('show');
+}
+const closeModal = () => modal.classList.remove('show');
+$('modalClose').addEventListener('click', closeModal);
+modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+$('modalCopy').addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText($('modalBody').textContent); $('modalCopy').textContent = '복사됨'; }
+  catch { const s = window.getSelection(); const rg = document.createRange(); rg.selectNodeContents($('modalBody')); s.removeAllRanges(); s.addRange(rg); $('modalCopy').textContent = '선택됨 (Cmd+C)'; }
+});

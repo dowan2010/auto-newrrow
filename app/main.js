@@ -48,7 +48,7 @@ async function runJob(emit) {
     }
     const client = createClient({ getToken: session.getToken, refreshToken: session.refreshToken });
     const out = await runDaily(client, {
-      say: (l) => emit(l),
+      say: (l, detail) => emit(l, detail),
       setStatus: (m) => emit(`▸ ${m}`),
       truncate: (t, n) => (t.length > n ? t.slice(0, n) + '…' : t),
     });
@@ -132,7 +132,7 @@ if (AUTO || SELFTEST) {
   });
   ipcMain.handle('job:run', async () => {
     try {
-      const out = await runJob((l) => send('log', { time: stamp(), text: l }));
+      const out = await runJob((l, detail) => send('log', { time: stamp(), text: l, detail }));
       return { ok: true, result: out.result };
     } catch (err) {
       send('log', { time: stamp(), text: `❌ ${err.message}` });
@@ -142,6 +142,10 @@ if (AUTO || SELFTEST) {
   ipcMain.handle('daily:get', () => ({ on: isDailyInstalled(), time: loadSettings().dailyTime }));
   ipcMain.handle('daily:set', (_e, on, time) => {
     try {
+      // dmg 안(/Volumes)이나 임시 격리 경로(AppTranslocation)에서 실행 중이면 그 경로가 곧 사라져 자동 실행이 깨짐
+      if (on && process.platform === 'darwin' && app.isPackaged && /^\/Volumes\/|\/AppTranslocation\//.test(process.execPath)) {
+        return { ok: false, message: '앱을 Applications 폴더로 옮긴 뒤 다시 켜 주세요 (지금은 dmg 안에서 실행 중이에요)' };
+      }
       if (on) { saveSettings({ dailyTime: time }); return { ok: true, message: installDaily(time, launchSpec()) }; }
       return { ok: true, message: uninstallDaily() };
     } catch (err) { return { ok: false, message: err.message }; }
