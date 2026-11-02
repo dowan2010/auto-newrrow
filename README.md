@@ -60,7 +60,8 @@ newrrow
 ## 매일 자동 실행 (macOS)
 
 ```bash
-newrrow --install-daily 08:30   # 매일 08:30 등록 (시간 생략하면 08:30)
+newrrow --install-daily 08:30   # 매일 08:30 / 12:30 / 20:30 (기준 시각 +4시간, +12시간) 등록, 시간 생략하면 08:30 기준
+                                # 일시 오류 대비 하루 3번 시도하고, 이미 완료된 날은 건너뜀
 newrrow --uninstall-daily       # 해제
 ```
 
