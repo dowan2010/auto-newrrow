@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // auto-newrrow CLI — 뉴로우 회고 자동화 (터미널에서 직접 실행)
 // 실행: node cli.js
-// 최초 실행 시 "설정" 메뉴에서 AI API 키(Gemini 또는 GPT) / EMAIL / PASSWORD 입력하면 .env에 저장됨
+// 최초 실행 시 "설정" 메뉴에서 AI API 키(Gemini, GPT 또는 Claude) / EMAIL / PASSWORD 입력하면 .env에 저장됨
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { config as loadEnv } from 'dotenv';
@@ -433,7 +433,7 @@ function errorLines(err) {
 
 async function doSettings() {
   const currentLines = () => [
-    textLine('AI', aiProvider() === 'openai' ? 'GPT (OpenAI)' : 'Gemini'),
+    textLine('AI', { openai: 'GPT (OpenAI)', claude: 'Claude' }[aiProvider()] ?? 'Gemini'),
     textLine(aiKeyEnvName(), mask(process.env[aiKeyEnvName()])),
     textLine('EMAIL', mask(EMAIL)),
     textLine('PASSWORD', mask(PASSWORD)),
@@ -442,9 +442,10 @@ async function doSettings() {
     contentRow('엔터만 치면 값 유지', `${C.dim}엔터만 치면 값 유지${C.reset}`),
   ];
 
-  const prov = (await cardAsk(currentLines(), 'AI 공급자 1=Gemini 2=GPT (엔터=유지)')).trim();
+  const prov = (await cardAsk(currentLines(), 'AI 공급자 1=Gemini 2=GPT 3=Claude (엔터=유지)')).trim();
   if (prov === '1') upsertEnvValue('AI_PROVIDER', 'gemini');
   else if (prov === '2') upsertEnvValue('AI_PROVIDER', 'openai');
+  else if (prov === '3') upsertEnvValue('AI_PROVIDER', 'claude');
 
   const keyName = aiKeyEnvName();
   const key = await cardAsk(currentLines(), `새 ${keyName} (엔터=유지)`);

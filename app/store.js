@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync, existsSync, chmodSync } from 'fs';
 import { join } from 'path';
 
 const file = () => join(app.getPath('userData'), 'settings.json');
-const SECRET = ['password', 'geminiKey', 'openaiKey'];
+const SECRET = ['password', 'geminiKey', 'openaiKey', 'claudeKey'];
 
 // macOS는 키체인을 쓰지 않음 — 서명 없는 앱은 업데이트마다 키체인 접근을 다시 물어서 자동 실행이 멈추는 문제가 있었음.
 // 내 계정만 읽을 수 있는 파일(권한 600)에 저장함. Windows는 팝업 없는 OS 암호화(DPAPI)를 그대로 사용.
@@ -26,7 +26,7 @@ function persist(obj) {
 
 export function loadSettings() {
   const raw = existsSync(file()) ? JSON.parse(readFileSync(file(), 'utf-8')) : {};
-  const out = { email: '', password: '', geminiKey: '', openaiKey: '', aiProvider: 'gemini', dailyTime: '08:30', showBrowser: false, ...raw };
+  const out = { email: '', password: '', geminiKey: '', openaiKey: '', claudeKey: '', aiProvider: 'gemini', dailyTime: '08:30', showBrowser: false, ...raw };
   let allOk = true;
   let hadKeychainValues = false;
   for (const k of SECRET) {

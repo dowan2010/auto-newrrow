@@ -19,7 +19,7 @@ xattr -dr com.apple.quarantine "/Applications/Auto Newrrow.app"
 2. 설치되면 바로 실행됨 (설치 위치 선택 없음, 시작 메뉴에 등록).
 
 **공통**
-- 앱에서 이메일 / 비밀번호 입력, **AI 서비스(Gemini 또는 GPT)** 고르고 API 키 입력 → **저장**. 
+- 앱에서 이메일 / 비밀번호 입력, **AI 서비스(Gemini, GPT 또는 Claude)** 고르고 API 키(Claude는 토큰) 입력 → **저장**. 
 - **지금 실행** 또는 **매일 자동 실행**을 켜기. 자동 실행은 컴퓨터가 켜져 있어야 함 (Windows는 로그인된 상태).
 - 비밀번호·키는 이 컴퓨터에만 저장됨 (macOS: 내 계정만 읽는 파일, 권한 600 / Windows: 자격 증명 보호로 암호화). 키체인 팝업 없음.
 - 새 버전이 나오면 앱 상단에 알림이 뜨고, 버튼 한 번으로 받아서 열어줌.
@@ -49,9 +49,10 @@ newrrow
 
 첫 실행 → 메뉴 **설정 (API 키 / 계정)** → 입력 → 저장됨.
 
-- AI 키 (둘 중 하나) — 설정 메뉴에서 공급자 선택
+- AI 키 (하나) — 설정 메뉴에서 공급자 선택
   - `GEMINI_API_KEY` — Google AI Studio 발급 (기본)
   - `OPENAI_API_KEY` — OpenAI 발급, GPT 사용 (`AI_PROVIDER=openai`, 모델은 `OPENAI_MODEL`로 변경, 기본 `gpt-4o-mini`)
+  - `CLAUDE_CODE_OAUTH_TOKEN` — 클로드 구독 사용량을 쓰는 토큰 (`claude setup-token`으로 발급, `AI_PROVIDER=claude`, 모델은 `CLAUDE_MODEL`로 변경, 기본 `claude-haiku-5-5`). 일반 Anthropic API 키(`sk-ant-api…`)도 같은 칸에 넣으면 됨
 - `EMAIL` / `PASSWORD` — 뉴로우 계정
 
 설정은 전역 설치면 `~/.auto-newrrow/`, 소스 실행이면 프로젝트 폴더에 저장됨.

@@ -72,7 +72,7 @@ function clearLog() {
 const todayStr = () => new Date().toLocaleDateString('sv');
 let dailyOn = false;
 let provider = 'gemini';
-let saved = { gemini: false, openai: false };
+let saved = { gemini: false, openai: false, claude: false };
 
 function setChip(state, text) {
   $('chip').className = `chip ${state}`;
@@ -92,8 +92,8 @@ function showLast(lr) {
 function setProvider(p) {
   provider = p;
   for (const b of $('provSeg').children) b.classList.toggle('on', b.dataset.p === p);
-  $('aiKeyLabel').textContent = p === 'openai' ? 'OpenAI API 키' : 'Gemini API 키';
-  $('aiKey').placeholder = saved[p] ? '••••••••  (저장됨)' : 'API 키';
+  $('aiKeyLabel').textContent = { gemini: 'Gemini API 키', openai: 'OpenAI API 키', claude: 'Claude 토큰' }[p];
+  $('aiKey').placeholder = saved[p] ? '••••••••  (저장됨)' : (p === 'claude' ? 'sk-ant-oat…' : 'API 키');
   $('aiKey').value = '';
 }
 $('provSeg').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) setProvider(b.dataset.p); });
@@ -118,7 +118,7 @@ async function init() {
   const s = await window.api.getSettings();
   $('email').value = s.email;
   $('password').placeholder = s.hasPassword ? '••••••••  (저장됨)' : '비밀번호';
-  saved = { gemini: s.hasGeminiKey, openai: s.hasOpenaiKey };
+  saved = { gemini: s.hasGeminiKey, openai: s.hasOpenaiKey, claude: s.hasClaudeKey };
   setProvider(s.aiProvider || 'gemini');
   setShow(!!s.showBrowser);
   showLast(s.lastRun);
@@ -128,7 +128,7 @@ async function init() {
 }
 
 $('save').addEventListener('click', async () => {
-  await window.api.saveSettings({ email: $('email').value, password: $('password').value, aiProvider: provider, [provider === 'openai' ? 'openaiKey' : 'geminiKey']: $('aiKey').value });
+  await window.api.saveSettings({ email: $('email').value, password: $('password').value, aiProvider: provider, [`${provider}Key`]: $('aiKey').value });
   $('password').value = ''; $('aiKey').value = '';
   $('saveMsg').textContent = '저장했어요';
   setTimeout(() => ($('saveMsg').textContent = ''), 2500);
@@ -167,6 +167,12 @@ init();
   if (!info.update) return;
   $('updateText').textContent = `새 버전 ${info.update.latest}이 있어요`;
   $('update').classList.add('show');
+  // 릴리스 노트 — 파일 표(| 로 시작하는 줄)는 빼고 변경 내용만 보여줌
+  const notes = String(info.update.notes ?? '').split('\n').filter((l) => !l.trim().startsWith('|')).join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  if (notes) {
+    $('updateNotes').style.display = '';
+    $('updateNotes').addEventListener('click', () => openModal(`${info.update.latest} 변경 내용`, notes));
+  }
   window.api.onUpdateProgress((p) => {
     if (p === 'installing') { $('updateText').textContent = '설치 중이에요. 앱이 잠시 꺼졌다 다시 켜져요'; $('updateBtn').style.display = 'none'; }
     else $('updateBtn').textContent = `받는 중 ${p}%`;

@@ -28,12 +28,14 @@ const stamp = () => new Date().toLocaleTimeString('en-GB', { hour12: false });
 async function runJob(emit) {
   if (running) throw new Error('이미 실행 중이에요');
   const s = loadSettings();
-  const useGpt = s.aiProvider === 'openai';
-  const missing = [!s.email && '이메일', !s.password && '비밀번호', (useGpt ? !s.openaiKey : !s.geminiKey) && (useGpt ? 'OpenAI API 키' : 'Gemini API 키')].filter(Boolean);
+  const prov = ['openai', 'claude'].includes(s.aiProvider) ? s.aiProvider : 'gemini';
+  const keyLabel = { gemini: 'Gemini API 키', openai: 'OpenAI API 키', claude: 'Claude 토큰' }[prov];
+  const missing = [!s.email && '이메일', !s.password && '비밀번호', !s[`${prov}Key`] && keyLabel].filter(Boolean);
   if (missing.length) throw new Error(`설정이 비어 있어요: ${missing.join(', ')}`);
-  process.env.AI_PROVIDER = useGpt ? 'openai' : 'gemini';
+  process.env.AI_PROVIDER = prov;
   process.env.GEMINI_API_KEY = s.geminiKey;
   process.env.OPENAI_API_KEY = s.openaiKey;
+  process.env.CLAUDE_CODE_OAUTH_TOKEN = s.claudeKey;
   running = true;
   send('status', { running: true });
   let session;
@@ -120,12 +122,12 @@ if (AUTO || SELFTEST) {
 
   ipcMain.handle('settings:get', () => {
     const s = loadSettings();
-    return { email: s.email, hasPassword: !!s.password, hasGeminiKey: !!s.geminiKey, hasOpenaiKey: !!s.openaiKey, aiProvider: s.aiProvider, showBrowser: !!s.showBrowser, dailyTime: s.dailyTime, lastRun: s.lastRun ?? null };
+    return { email: s.email, hasPassword: !!s.password, hasGeminiKey: !!s.geminiKey, hasOpenaiKey: !!s.openaiKey, hasClaudeKey: !!s.claudeKey, aiProvider: s.aiProvider, showBrowser: !!s.showBrowser, dailyTime: s.dailyTime, lastRun: s.lastRun ?? null };
   });
   ipcMain.handle('settings:save', (_e, patch) => {
     const clean = {};
-    for (const k of ['email', 'password', 'geminiKey', 'openaiKey', 'dailyTime']) if (typeof patch[k] === 'string' && patch[k].trim() !== '') clean[k] = patch[k].trim();
-    if (patch.aiProvider === 'gemini' || patch.aiProvider === 'openai') clean.aiProvider = patch.aiProvider;
+    for (const k of ['email', 'password', 'geminiKey', 'openaiKey', 'claudeKey', 'dailyTime']) if (typeof patch[k] === 'string' && patch[k].trim() !== '') clean[k] = patch[k].trim();
+    if (['gemini', 'openai', 'claude'].includes(patch.aiProvider)) clean.aiProvider = patch.aiProvider;
     if (typeof patch.showBrowser === 'boolean') clean.showBrowser = patch.showBrowser;
     saveSettings(clean);
     return true;
@@ -157,7 +159,7 @@ if (AUTO || SELFTEST) {
   ipcMain.handle('env:openApplications', () => shell.openPath('/Applications'));
 
   // 도움말의 외부 링크 — 허용된 주소만 열기
-  const ALLOWED_LINKS = [/^https:\/\/aistudio\.google\.com\//, /^https:\/\/platform\.openai\.com\//, /^https:\/\/github\.com\/dowan2010\/auto-newrrow\//];
+  const ALLOWED_LINKS = [/^https:\/\/aistudio\.google\.com\//, /^https:\/\/platform\.openai\.com\//, /^https:\/\/docs\.claude\.com\//, /^https:\/\/github\.com\/dowan2010\/auto-newrrow\//];
   ipcMain.handle('open:external', (_e, url) => {
     if (typeof url === 'string' && ALLOWED_LINKS.some((re) => re.test(url))) { shell.openExternal(url); return true; }
     return false;
@@ -167,7 +169,7 @@ if (AUTO || SELFTEST) {
   ipcMain.handle('update:check', async () => {
     lastUpdate = await checkForUpdate(app.getVersion());
     if (FROM_DMG) return { version: app.getVersion(), update: null };
-    return { version: app.getVersion(), update: lastUpdate?.hasUpdate ? { latest: lastUpdate.latest, canInstall: !!lastUpdate.assetUrl, pageUrl: lastUpdate.pageUrl } : null };
+    return { version: app.getVersion(), update: lastUpdate?.hasUpdate ? { latest: lastUpdate.latest, canInstall: !!lastUpdate.assetUrl, pageUrl: lastUpdate.pageUrl, notes: lastUpdate.notes } : null };
   });
   ipcMain.handle('update:install', async () => {
     try {
