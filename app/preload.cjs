@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('api', {
   run: () => ipcRenderer.invoke('job:run'),
   getDaily: () => ipcRenderer.invoke('daily:get'),
   setDaily: (on, time) => ipcRenderer.invoke('daily:set', on, time),
+  getWhatsNew: () => ipcRenderer.invoke('whatsnew:get'),
   checkUpdate: () => ipcRenderer.invoke('update:check'),
   installUpdate: () => ipcRenderer.invoke('update:install'),
   onUpdateProgress: (cb) => ipcRenderer.on('update:progress', (_e, p) => cb(p)),

@@ -17,7 +17,7 @@ const { openLoginWindow } = await import('./login.js');
 const { createClient, todayKST } = await import('../lib/client.js');
 const { runDaily } = await import('../lib/core.js');
 const { installDaily, uninstallDaily, isDailyInstalled } = await import('../lib/daily.js');
-const { checkForUpdate, downloadAsset, currentBundlePath, canReplaceInPlace, stageInPlaceUpdate } = await import('./update.js');
+const { fetchReleaseNotes, checkForUpdate, downloadAsset, currentBundlePath, canReplaceInPlace, stageInPlaceUpdate } = await import('./update.js');
 
 let win = null;
 let running = false;
@@ -43,6 +43,7 @@ async function runJob(emit) {
     try {
       session = await openLoginWindow(s.email, s.password, (m) => emit(`▸ ${m}`), { show: !!s.showBrowser });
     } catch (err) {
+      if (err.code === 'BAD_CREDENTIALS') throw err;
       // 앱 첫 실행 직후엔 내장 네트워크 서비스가 한 번 재시작되며 로그인이 실패할 수 있어 1회 재시도
       emit(`⚠ 로그인 재시도: ${err.message}`);
       await new Promise((r) => setTimeout(r, 3000));
@@ -163,6 +164,18 @@ if (AUTO || SELFTEST) {
   ipcMain.handle('open:external', (_e, url) => {
     if (typeof url === 'string' && ALLOWED_LINKS.some((re) => re.test(url))) { shell.openExternal(url); return true; }
     return false;
+  });
+
+  // 업데이트 직후 첫 실행이면 이번 버전 변경 내용을 알려줌 (처음 설치한 경우는 제외)
+  ipcMain.handle('whatsnew:get', async () => {
+    const s = loadSettings();
+    const version = app.getVersion();
+    if (s.lastSeenVersion === version) return null;
+    if (!s.lastSeenVersion && !s.email) { saveSettings({ lastSeenVersion: version }); return null; }
+    const notes = await fetchReleaseNotes(version);
+    if (notes === null) return null; // 오프라인 등 — 다음 실행 때 다시 시도
+    saveSettings({ lastSeenVersion: version });
+    return notes ? { version, notes } : null;
   });
 
   let lastUpdate = null;

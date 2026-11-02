@@ -8,6 +8,7 @@ export async function openLoginWindow(email, password, onProgress = () => {}, { 
   const ses = session.fromPartition(`login-${Date.now()}`);
   let token = null;
   let loginPosted = false;
+  let loginStatus = 0;
   ses.webRequest.onBeforeSendHeaders({ urls: ['https://api-agw.newrrow.com/*'] }, (details, cb) => {
     const a = details.requestHeaders.Authorization ?? details.requestHeaders.authorization;
     if (a?.startsWith('Bearer ')) token = a.slice(7);
@@ -16,6 +17,9 @@ export async function openLoginWindow(email, password, onProgress = () => {}, { 
   ses.webRequest.onBeforeRequest({ urls: ['https://auth.inhrplus.com/api/v1/universal-login/login*'] }, (details, cb) => {
     if (details.method === 'POST') loginPosted = true;
     cb({});
+  });
+  ses.webRequest.onCompleted({ urls: ['https://auth.inhrplus.com/api/v1/universal-login/login*'] }, (details) => {
+    if (details.method === 'POST') loginStatus = details.statusCode;
   });
 
   const win = new BrowserWindow({
@@ -30,6 +34,7 @@ export async function openLoginWindow(email, password, onProgress = () => {}, { 
     onProgress('뉴로우 접속 중...');
     win.loadURL(HOME_URL).catch(() => {});
     let logins = 0;
+    let rejected = 0; // 서버가 로그인 요청을 거절한 횟수 (아이디/비밀번호 오류)
     const deadline = Date.now() + 90000;
     while (!token && Date.now() < deadline) {
       await sleep(700);
@@ -40,6 +45,7 @@ export async function openLoginWindow(email, password, onProgress = () => {}, { 
         onProgress('로그인 중...');
         await sleep(1500); // 로그인 스크립트가 붙기 전에 누르면 아무 일도 안 일어남
         loginPosted = false;
+        loginStatus = 0;
         for (let attempt = 0; attempt < 3 && !loginPosted; attempt++) {
           await run(`(() => {
             const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); };
@@ -50,8 +56,15 @@ export async function openLoginWindow(email, password, onProgress = () => {}, { 
           for (let i = 0; i < 12 && !loginPosted; i++) await sleep(250);
         }
         await sleep(2500);
+        if (!token && loginStatus >= 400 && loginStatus < 500 && loginStatus !== 429) rejected++;
+        if (!token && rejected >= 2) break;
         if (!token) win.loadURL(HOME_URL).catch(() => {});
       }
+    }
+    if (!token && rejected >= 2) {
+      const err = new Error('아이디 또는 비밀번호가 틀려요 — 설정에서 이메일/비밀번호를 확인해 주세요');
+      err.code = 'BAD_CREDENTIALS';
+      throw err;
     }
     if (!token) throw new Error('로그인 실패 — 이메일/비밀번호를 확인해 주세요');
     onProgress('로그인 성공');

@@ -84,7 +84,7 @@ function showLast(lr) {
   const when = new Date(lr.at);
   const label = `${when.getMonth() + 1}월 ${when.getDate()}일 ${when.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
   const ok = lr.result !== 'error';
-  $('lastRun').textContent = `마지막 실행 · ${label} · ${ok ? (lr.result === 'already_done' ? '이미 완료돼 있었어요' : '완료') : '실패'}`;
+  $('lastRun').textContent = `마지막 실행 · ${label} · ${ok ? (lr.result === 'already_done' ? '이미 완료돼 있었어요' : '완료') : `실패${lr.message ? ` — ${lr.message}` : ''}`}`;
   if (lr.date === todayStr()) setChip(ok ? 'done' : 'err', ok ? '오늘 완료' : '오늘 실패');
   else setChip('', '오늘 미실행');
 }
@@ -160,6 +160,23 @@ window.api.onStatus((s) => {
 });
 init();
 
+// 릴리스 노트에서 해당 버전 변경 내용만 추려냄 (받을 파일 안내·표는 제외)
+function releaseNotes(body, version) {
+  let t = String(body ?? '');
+  const i = t.indexOf(`## ${version}`);
+  if (i >= 0) t = t.slice(i).replace(/^## .*\n/, '');
+  else t = t.split('\n').filter((l) => !l.trim().startsWith('|')).join('\n');
+  return t.replace(/\n{3,}/g, '\n\n').trim();
+}
+
+// 업데이트 직후 첫 실행이면 이번 버전 변경 내용을 보여줌
+(async () => {
+  const w = await window.api.getWhatsNew();
+  if (!w) return;
+  const notes = releaseNotes(w.notes, w.version);
+  if (notes) openModal(`${w.version} 업데이트 내용`, notes);
+})();
+
 // 업데이트 확인 — 새 버전이 있으면 알림 띄우고, 버튼으로 dmg를 받아 열어 줌
 (async () => {
   const info = await window.api.checkUpdate();
@@ -167,8 +184,7 @@ init();
   if (!info.update) return;
   $('updateText').textContent = `새 버전 ${info.update.latest}이 있어요`;
   $('update').classList.add('show');
-  // 릴리스 노트 — 파일 표(| 로 시작하는 줄)는 빼고 변경 내용만 보여줌
-  const notes = String(info.update.notes ?? '').split('\n').filter((l) => !l.trim().startsWith('|')).join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  const notes = releaseNotes(info.update.notes, info.update.latest);
   if (notes) {
     $('updateNotes').style.display = '';
     $('updateNotes').addEventListener('click', () => openModal(`${info.update.latest} 변경 내용`, notes));

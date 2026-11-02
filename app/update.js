@@ -14,6 +14,20 @@ export function isNewer(latest, current) {
   return false;
 }
 
+// 특정 버전의 릴리스 노트 (없거나 실패하면 null)
+export async function fetchReleaseNotes(version) {
+  try {
+    const res = await fetch(`https://api.github.com/repos/${REPO}/releases/tags/v${version}`, {
+      headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'auto-newrrow' },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return null;
+    return (await res.json()).body ?? '';
+  } catch {
+    return null;
+  }
+}
+
 // GitHub 최신 릴리스를 확인 (실패해도 앱 사용엔 영향 없게 null 반환)
 export async function checkForUpdate(current, arch = process.arch, platform = process.platform) {
   try {
