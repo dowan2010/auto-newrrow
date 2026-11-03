@@ -13,7 +13,7 @@ process.env.AUTO_NEWRROW_HOME = app.getPath('userData');
 if (AUTO) app.dock?.hide();
 
 const { loadSettings, saveSettings } = await import('./store.js');
-const { openLoginWindow } = await import('./login.js');
+const { openLoginWindow, waitForNetwork } = await import('./login.js');
 const { createClient, todayKST } = await import('../lib/client.js');
 const { runDaily } = await import('../lib/core.js');
 const { installDaily, uninstallDaily, isDailyInstalled } = await import('../lib/daily.js');
@@ -40,6 +40,7 @@ async function runJob(emit) {
   send('status', { running: true });
   let session;
   try {
+    await waitForNetwork((m) => emit(`▸ ${m}`));
     try {
       session = await openLoginWindow(s.email, s.password, (m) => emit(`▸ ${m}`), { show: !!s.showBrowser });
     } catch (err) {

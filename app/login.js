@@ -3,6 +3,21 @@ import { BrowserWindow, session } from 'electron';
 const HOME_URL = 'https://dgsm.newrrow.com/csr-platform/agent-home?mode=reflection';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// 잠자기에서 막 깨어난 직후엔 네트워크가 아직 안 붙어 있어 로그인이 통째로 실패하므로, 연결될 때까지 최대 3분 기다림
+export async function waitForNetwork(onProgress = () => {}, maxMs = 180000) {
+  const deadline = Date.now() + maxMs;
+  let told = false;
+  while (Date.now() < deadline) {
+    try {
+      await fetch('https://dgsm.newrrow.com', { method: 'HEAD', signal: AbortSignal.timeout(5000) });
+      return;
+    } catch {
+      if (!told) { onProgress('네트워크 연결 대기 중...'); told = true; }
+      await sleep(5000);
+    }
+  }
+}
+
 // 보이지 않는 창으로 로그인해서 API 토큰을 확보 (Playwright 없이 Electron 내장 Chromium 사용)
 export async function openLoginWindow(email, password, onProgress = () => {}, { show = false } = {}) {
   const ses = session.fromPartition(`login-${Date.now()}`);
