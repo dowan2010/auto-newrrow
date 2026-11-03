@@ -25,7 +25,16 @@ let running = false;
 const send = (ch, payload) => { if (win && !win.isDestroyed()) win.webContents.send(ch, payload); };
 const stamp = () => new Date().toLocaleTimeString('en-GB', { hour12: false });
 
-async function runJob(emit) {
+// 실행 기록: 최근 15건과 각 실행의 로그(최대 60줄)를 저장
+function addHistory(entry) {
+  saveSettings({ history: [entry, ...(loadSettings().history ?? [])].slice(0, 15) });
+}
+
+async function runJob(emitRaw) {
+  const buf = [];
+  const emit = (l, detail) => { buf.push(l); emitRaw(l, detail); };
+  const startedAt = new Date().toISOString();
+  const trigger = AUTO ? 'auto' : 'manual';
   if (running) throw new Error('이미 실행 중이에요');
   const s = loadSettings();
   const prov = ['openai', 'claude'].includes(s.aiProvider) ? s.aiProvider : 'gemini';
@@ -58,9 +67,11 @@ async function runJob(emit) {
     });
     emit(out.result === 'already_done' ? `✅ 이미 완료됨 (${out.dateLabel})` : `✅ 계획+회고 완료 (${out.dateLabel})`);
     saveSettings({ lastRun: { date: out.dateLabel, result: out.result, at: new Date().toISOString() } });
+    addHistory({ at: startedAt, trigger, result: out.result, log: buf.slice(-60).join('\n') });
     return out;
   } catch (err) {
     saveSettings({ lastRun: { date: todayKST(), result: 'error', at: new Date().toISOString(), message: err.message } });
+    addHistory({ at: startedAt, trigger, result: 'error', message: err.message, log: buf.slice(-60).join('\n') });
     throw err;
   } finally {
     session?.close();
@@ -122,6 +133,7 @@ if (AUTO || SELFTEST) {
   if (!app.requestSingleInstanceLock()) app.quit();
   app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
 
+  ipcMain.handle('history:get', () => loadSettings().history ?? []);
   ipcMain.handle('settings:get', () => {
     const s = loadSettings();
     return { email: s.email, hasPassword: !!s.password, hasGeminiKey: !!s.geminiKey, hasOpenaiKey: !!s.openaiKey, hasClaudeKey: !!s.claudeKey, aiProvider: s.aiProvider, showBrowser: !!s.showBrowser, dailyTime: s.dailyTime, lastRun: s.lastRun ?? null };

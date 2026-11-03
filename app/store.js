@@ -26,7 +26,7 @@ function persist(obj) {
 
 export function loadSettings() {
   const raw = existsSync(file()) ? JSON.parse(readFileSync(file(), 'utf-8')) : {};
-  const out = { email: '', password: '', geminiKey: '', openaiKey: '', claudeKey: '', aiProvider: 'gemini', lastSeenVersion: '', dailyTime: '08:30', showBrowser: false, ...raw };
+  const out = { email: '', password: '', geminiKey: '', openaiKey: '', claudeKey: '', aiProvider: 'gemini', lastSeenVersion: '', history: [], dailyTime: '08:30', showBrowser: false, ...raw };
   let allOk = true;
   let hadKeychainValues = false;
   for (const k of SECRET) {

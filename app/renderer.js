@@ -212,6 +212,19 @@ $('helpClose').addEventListener('click', () => setHelp(false));
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') setHelp(false); });
 help.addEventListener('click', (e) => { const a = e.target.closest('a[data-url]'); if (a) window.api.openExternal(a.dataset.url); });
 
+// 실행 기록 (자동/수동 실행 결과와 로그)
+$('historyBtn').addEventListener('click', async () => {
+  const list = await window.api.getHistory();
+  if (!list.length) return openModal('실행 기록', '아직 기록이 없어요. 이 버전부터 실행할 때마다 쌓여요.');
+  const label = { done: '완료', already_done: '이미 완료', error: '실패' };
+  const body = list.map((h) => {
+    const d = new Date(h.at);
+    const head = `${d.getMonth() + 1}/${d.getDate()} ${d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} · ${h.trigger === 'auto' ? '자동' : '수동'} · ${label[h.result] ?? h.result}${h.message ? ` — ${h.message}` : ''}`;
+    return `■ ${head}\n${h.log.split('\n').map((l) => `   ${l}`).join('\n')}`;
+  }).join('\n\n');
+  openModal('실행 기록', body);
+});
+
 // 로그 상세 보기 (본문 전체 등)
 const modal = $('modal');
 function openModal(title, body) {
