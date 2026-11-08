@@ -1,6 +1,7 @@
 import { BrowserWindow, session } from 'electron';
 
-const HOME_URL = 'https://dgsm.newrrow.com/csr-platform/agent-home?mode=reflection';
+import { school, homeUrl } from '../lib/school.js';
+
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // 잠자기에서 막 깨어난 직후엔 네트워크가 아직 안 붙어 있어 로그인이 통째로 실패하므로, 연결될 때까지 최대 3분 기다림
@@ -9,7 +10,7 @@ export async function waitForNetwork(onProgress = () => {}, maxMs = 180000) {
   let told = false;
   while (Date.now() < deadline) {
     try {
-      await fetch('https://dgsm.newrrow.com', { method: 'HEAD', signal: AbortSignal.timeout(5000) });
+      await fetch(`https://${school().host}`, { method: 'HEAD', signal: AbortSignal.timeout(5000) });
       return;
     } catch {
       if (!told) { onProgress('네트워크 연결 대기 중...'); told = true; }
@@ -47,7 +48,7 @@ export async function openLoginWindow(email, password, onProgress = () => {}, { 
 
   try {
     onProgress('뉴로우 접속 중...');
-    win.loadURL(HOME_URL).catch(() => {});
+    win.loadURL(homeUrl()).catch(() => {});
     let logins = 0;
     let rejected = 0; // 서버가 로그인 요청을 거절한 횟수 (아이디/비밀번호 오류)
     const deadline = Date.now() + 90000;
@@ -73,7 +74,7 @@ export async function openLoginWindow(email, password, onProgress = () => {}, { 
         await sleep(2500);
         if (!token && loginStatus >= 400 && loginStatus < 500 && loginStatus !== 429) rejected++;
         if (!token && rejected >= 2) break;
-        if (!token) win.loadURL(HOME_URL).catch(() => {});
+        if (!token) win.loadURL(homeUrl()).catch(() => {});
       }
     }
     if (!token && rejected >= 2) {

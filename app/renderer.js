@@ -72,6 +72,7 @@ function clearLog() {
 const todayStr = () => new Date().toLocaleDateString('sv');
 let dailyOn = false;
 let provider = 'gemini';
+let school = 'dgsm';
 let saved = { gemini: false, openai: false, claude: false };
 
 function setChip(state, text) {
@@ -98,6 +99,13 @@ function setProvider(p) {
 }
 $('provSeg').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) setProvider(b.dataset.p); });
 
+function setSchool(sc) {
+  school = sc;
+  for (const b of $('schoolSeg').children) b.classList.toggle('on', b.dataset.sc === sc);
+  $('schoolUrl').style.display = sc === 'custom' ? '' : 'none';
+}
+$('schoolSeg').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) setSchool(b.dataset.sc); });
+
 function setShow(on) {
   for (const b of $('showSeg').children) b.classList.toggle('on', (b.dataset.s === '1') === on);
 }
@@ -120,6 +128,8 @@ async function init() {
   $('password').placeholder = s.hasPassword ? '••••••••  (저장됨)' : '비밀번호';
   saved = { gemini: s.hasGeminiKey, openai: s.hasOpenaiKey, claude: s.hasClaudeKey };
   setProvider(s.aiProvider || 'gemini');
+  setSchool(s.school || 'dgsm');
+  $('schoolUrl').value = s.schoolUrl || '';
   setShow(!!s.showBrowser);
   showLast(s.lastRun);
   const d = await window.api.getDaily();
@@ -128,7 +138,12 @@ async function init() {
 }
 
 $('save').addEventListener('click', async () => {
-  await window.api.saveSettings({ email: $('email').value, password: $('password').value, aiProvider: provider, [`${provider}Key`]: $('aiKey').value });
+  try {
+    await window.api.saveSettings({ email: $('email').value, password: $('password').value, aiProvider: provider, school, schoolUrl: $('schoolUrl').value, [`${provider}Key`]: $('aiKey').value });
+  } catch (err) {
+    $('saveMsg').textContent = String(err.message).replace(/^Error invoking remote method '[^']+': (Error: )?/, '');
+    return;
+  }
   $('password').value = ''; $('aiKey').value = '';
   $('saveMsg').textContent = '저장했어요';
   setTimeout(() => ($('saveMsg').textContent = ''), 2500);

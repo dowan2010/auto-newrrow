@@ -54,6 +54,7 @@
       "lib/data.js",
       "lib/paths.js",
       "lib/daily.js",
+      "lib/school.js",
       "package.json",
       "!**/node_modules/**"
     ],

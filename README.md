@@ -1,6 +1,6 @@
 # auto-newrrow
 
-뉴로우(dgsm.newrrow.com) 일일 계획·회고 자동화 CLI.
+뉴로우(newrrow.com) 일일 계획·회고 자동화 CLI.
 
 ## 데스크톱 앱 (macOS / Windows)
 
@@ -54,6 +54,7 @@ newrrow
   - `OPENAI_API_KEY` — OpenAI 발급, GPT 사용 (`AI_PROVIDER=openai`, 모델은 `OPENAI_MODEL`로 변경, 기본 `gpt-4o-mini`)
   - `CLAUDE_CODE_OAUTH_TOKEN` — 클로드 구독 사용량을 쓰는 토큰 (`claude setup-token`으로 발급, `AI_PROVIDER=claude`, 모델은 `CLAUDE_MODEL`로 변경, 기본 `claude-haiku-5-5`). 일반 Anthropic API 키(`sk-ant-api…`)도 같은 칸에 넣으면 됨
 - `EMAIL` / `PASSWORD` — 뉴로우 계정
+- `NEWRROW_SCHOOL_URL` — 대구소마고가 아닌 학교일 때 그 학교 뉴로우 주소 (예: `https://학교이름.newrrow.com`). 비우면 대구소마고. 앱에서는 **학교 → 다른 학교**에 입력
 
 설정은 전역 설치면 `~/.auto-newrrow/`, 소스 실행이면 프로젝트 폴더에 저장됨.
 

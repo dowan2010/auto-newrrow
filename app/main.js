@@ -16,6 +16,7 @@ const { loadSettings, saveSettings } = await import('./store.js');
 const { openLoginWindow, waitForNetwork } = await import('./login.js');
 const { createClient, todayKST } = await import('../lib/client.js');
 const { runDaily } = await import('../lib/core.js');
+const { parseSchool } = await import('../lib/school.js');
 const { installDaily, uninstallDaily, isDailyInstalled } = await import('../lib/daily.js');
 const { fetchReleaseNotes, checkForUpdate, downloadAsset, currentBundlePath, canReplaceInPlace, stageInPlaceUpdate } = await import('./update.js');
 
@@ -39,8 +40,11 @@ async function runJob(emitRaw) {
   const s = loadSettings();
   const prov = ['openai', 'claude'].includes(s.aiProvider) ? s.aiProvider : 'gemini';
   const keyLabel = { gemini: 'Gemini API 키', openai: 'OpenAI API 키', claude: 'Claude 토큰' }[prov];
-  const missing = [!s.email && '이메일', !s.password && '비밀번호', !s[`${prov}Key`] && keyLabel].filter(Boolean);
+  const custom = s.school === 'custom';
+  const missing = [custom && !s.schoolUrl && '학교 주소', !s.email && '이메일', !s.password && '비밀번호', !s[`${prov}Key`] && keyLabel].filter(Boolean);
   if (missing.length) throw new Error(`설정이 비어 있어요: ${missing.join(', ')}`);
+  process.env.NEWRROW_SCHOOL_URL = custom ? s.schoolUrl : '';
+  parseSchool(process.env.NEWRROW_SCHOOL_URL); // 주소 형식이 틀리면 여기서 안내 메시지로 중단
   process.env.AI_PROVIDER = prov;
   process.env.GEMINI_API_KEY = s.geminiKey;
   process.env.OPENAI_API_KEY = s.openaiKey;
@@ -136,12 +140,14 @@ if (AUTO || SELFTEST) {
   ipcMain.handle('history:get', () => loadSettings().history ?? []);
   ipcMain.handle('settings:get', () => {
     const s = loadSettings();
-    return { email: s.email, hasPassword: !!s.password, hasGeminiKey: !!s.geminiKey, hasOpenaiKey: !!s.openaiKey, hasClaudeKey: !!s.claudeKey, aiProvider: s.aiProvider, showBrowser: !!s.showBrowser, dailyTime: s.dailyTime, lastRun: s.lastRun ?? null };
+    return { email: s.email, hasPassword: !!s.password, hasGeminiKey: !!s.geminiKey, hasOpenaiKey: !!s.openaiKey, hasClaudeKey: !!s.claudeKey, aiProvider: s.aiProvider, school: s.school, schoolUrl: s.schoolUrl, showBrowser: !!s.showBrowser, dailyTime: s.dailyTime, lastRun: s.lastRun ?? null };
   });
   ipcMain.handle('settings:save', (_e, patch) => {
     const clean = {};
-    for (const k of ['email', 'password', 'geminiKey', 'openaiKey', 'claudeKey', 'dailyTime']) if (typeof patch[k] === 'string' && patch[k].trim() !== '') clean[k] = patch[k].trim();
+    for (const k of ['email', 'password', 'geminiKey', 'openaiKey', 'claudeKey', 'schoolUrl', 'dailyTime']) if (typeof patch[k] === 'string' && patch[k].trim() !== '') clean[k] = patch[k].trim();
     if (['gemini', 'openai', 'claude'].includes(patch.aiProvider)) clean.aiProvider = patch.aiProvider;
+    if (patch.school === 'dgsm' || patch.school === 'custom') clean.school = patch.school;
+    if (clean.schoolUrl) parseSchool(clean.schoolUrl); // 형식이 틀리면 저장 전에 오류
     if (typeof patch.showBrowser === 'boolean') clean.showBrowser = patch.showBrowser;
     saveSettings(clean);
     return true;

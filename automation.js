@@ -1,6 +1,7 @@
 import { chromium } from 'playwright';
 import { mkdirSync } from 'fs';
 import 'dotenv/config';
+import { school, homeUrl } from './lib/school.js';
 
 const DATA_DIR = '.';
 
@@ -183,7 +184,7 @@ export async function resetReflection(email, password, date = null, silent = fal
   const { browser, page, token } = await _loginAndGetPage(email, password, silent);
   try {
     if (!token) throw new Error('토큰 캡처 실패');
-    const headers = { Authorization: `Bearer ${token}`, Tenant: 'dgsm', Accept: 'application/json' };
+    const headers = { Authorization: `Bearer ${token}`, Tenant: school().tenant, Accept: 'application/json' };
     const found = await page.request.get(`https://api-agw.newrrow.com/main/api/v1/daily-reflections?date=${targetDate}`, { headers });
     const id = (await found.json().catch(() => null))?.contents?.id;
     if (!id) throw new Error(`${targetDate} 회고를 찾을 수 없음`);
@@ -217,7 +218,7 @@ export async function getTasksWithToken(email, password, silent = false) {
   });
 
   const today = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().split('T')[0];
-  const tokenPage = 'https://dgsm.newrrow.com/csr-platform/agent-home?mode=reflection';
+  const tokenPage = homeUrl();
 
   try {
     await page.goto(tokenPage, { waitUntil: 'domcontentloaded', timeout: 60000 });
@@ -248,7 +249,7 @@ export async function getTasksWithToken(email, password, silent = false) {
 
     // tasks 페이지로 이동해서 API 호출 유도 (response interceptor가 캡처)
     if (!tasksFromResponse) {
-      await page.goto('https://dgsm.newrrow.com/csr-platform/my-task', { waitUntil: 'domcontentloaded', timeout: 30000 });
+      await page.goto(`https://${school().host}/csr-platform/my-task`, { waitUntil: 'domcontentloaded', timeout: 30000 });
       await page.waitForTimeout(4000);
     }
 
@@ -258,7 +259,7 @@ export async function getTasksWithToken(email, password, silent = false) {
         const res = await fetch('https://api-agw.newrrow.com/main/api/v2/my-tasks/csr', {
           headers: {
             'Authorization': `Bearer ${tok}`,
-            'Tenant': 'dgsm',
+            'Tenant': school().tenant,
             'Accept': 'application/json, text/plain, */*',
           },
         });
@@ -294,7 +295,7 @@ async function _loginAndGetPage(email, password, silent = false) {
   });
 
   const today = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().split('T')[0];
-  const tokenPage = 'https://dgsm.newrrow.com/csr-platform/agent-home?mode=reflection';
+  const tokenPage = homeUrl();
 
   await page.goto(tokenPage, { waitUntil: 'domcontentloaded', timeout: 60000 });
 
@@ -317,7 +318,7 @@ async function _loginAndGetPage(email, password, silent = false) {
 
   // 그래도 없으면 my-task 페이지로 이동해 API 요청 유도
   if (!token) {
-    await page.goto('https://dgsm.newrrow.com/csr-platform/my-task', { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {});
+    await page.goto(`https://${school().host}/csr-platform/my-task`, { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {});
     const d2 = Date.now() + 8000;
     while (!token && Date.now() < d2) await page.waitForTimeout(500);
   }
@@ -332,7 +333,7 @@ async function _contextPost(page, token, url, body) {
     headers: {
       'Content-Type': 'application/json',
       'Accept': 'application/json, text/plain, */*',
-      'Tenant': 'dgsm',
+      'Tenant': school().tenant,
       ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
     },
     data: JSON.stringify(body),
