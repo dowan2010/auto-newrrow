@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Auto Newrrow 다운로드</title>
+<style>
+  :root { --bg:#fff; --ink:#111; --soft:#555; --line:#e5e5e5; --card:#f6f6f7; --accent:#111; --on:#fff; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#111; --ink:#f2f2f2; --soft:#aaa; --line:#2a2a2a; --card:#1a1a1a; --accent:#f2f2f2; --on:#111; } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.6 -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; }
+  main { max-width:560px; margin:0 auto; padding:64px 16px; }
+  h1 { font-size:28px; margin:0 0 8px; }
+  p { margin:0 0 16px; color:var(--soft); }
+  .btns { display:grid; gap:12px; margin:32px 0; }
+  a.btn { display:flex; justify-content:space-between; align-items:center; padding:16px 20px; border-radius:14px; background:var(--card); color:var(--ink); text-decoration:none; border:1px solid var(--line); }
+  a.btn.main { background:var(--accent); color:var(--on); border-color:var(--accent); }
+  a.btn small { opacity:.7; }
+  pre { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px; overflow-x:auto; font-size:13px; }
+  h2 { font-size:16px; margin:32px 0 8px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Auto Newrrow</h1>
+  <p>뉴로우 일일 계획과 회고를 AI가 대신 작성해서 제출해요. <span id="ver"></span></p>
+  <div class="btns">
+    <a class="btn" id="mac" href="/api/download?os=mac"><span>Mac 다운로드</span><small>Apple Silicon (M1~M4)</small></a>
+    <a class="btn" id="win" href="/api/download?os=win"><span>Windows 다운로드</span><small>64비트</small></a>
+  </div>
+  <h2>Mac에서 "손상되었기 때문에 열 수 없습니다"가 뜨면</h2>
+  <p>서명 안 된 앱이라 Mac이 막는 거예요. 앱을 Applications로 옮긴 뒤 터미널에서 한 번 실행하세요.</p>
+  <pre>xattr -dr com.apple.quarantine "/Applications/Auto Newrrow.app"</pre>
+  <h2>Windows</h2>
+  <p>설치 파일을 실행하세요. SmartScreen이 막으면 <b>추가 정보 → 실행</b>을 누르세요.</p>
+</main>
+<script>
+  const isMac = /Mac/i.test(navigator.platform), isWin = /Win/i.test(navigator.platform);
+  if (isMac) document.getElementById('mac').classList.add('main');
+  if (isWin) document.getElementById('win').classList.add('main');
+  fetch('/api/download?info=1').then((r) => r.json()).then((d) => { document.getElementById('ver').textContent = `최신 버전 ${d.version}`; }).catch(() => {});
+</script>
+</body>
+</html>

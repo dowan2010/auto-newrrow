@@ -16,3 +16,4 @@ local-state.json
 dist
 !build/icon.png
 !app/index.html
+!site/index.html
