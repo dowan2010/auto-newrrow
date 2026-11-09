@@ -17,7 +17,7 @@ const { openLoginWindow, waitForNetwork } = await import('./login.js');
 const { createClient, todayKST } = await import('../lib/client.js');
 const { runDaily } = await import('../lib/core.js');
 const { parseSchool } = await import('../lib/school.js');
-const { installDaily, uninstallDaily, isDailyInstalled } = await import('../lib/daily.js');
+const { installDaily, uninstallDaily, isDailyInstalled, DAILY_OFFSETS_H } = await import('../lib/daily.js');
 const { fetchReleaseNotes, checkForUpdate, downloadAsset, currentBundlePath, canReplaceInPlace, stageInPlaceUpdate } = await import('./update.js');
 
 let win = null;
@@ -31,11 +31,13 @@ function addHistory(entry) {
   saveSettings({ history: [entry, ...(loadSettings().history ?? [])].slice(0, 15) });
 }
 
-async function runJob(emitRaw, date = todayKST()) {
+// 여러 날짜를 한 번의 로그인으로 처리 (날짜가 하나면 실패 시 그대로 오류를 던짐)
+async function runJob(emitRaw, dates = [todayKST()]) {
   const buf = [];
   const emit = (l, detail) => { buf.push(l); emitRaw(l, detail); };
   const startedAt = new Date().toISOString();
   const trigger = AUTO ? 'auto' : 'manual';
+  const record = (entry, from = 0) => addHistory({ at: startedAt, trigger, ...entry, log: buf.slice(from).slice(-60).join('\n') });
   if (running) throw new Error('이미 실행 중이에요');
   const s = loadSettings();
   const prov = ['openai', 'claude'].includes(s.aiProvider) ? s.aiProvider : 'gemini';
@@ -64,25 +66,54 @@ async function runJob(emitRaw, date = todayKST()) {
       session = await openLoginWindow(s.email, s.password, (m) => emit(`▸ ${m}`), { show: !!s.showBrowser });
     }
     const client = createClient({ getToken: session.getToken, refreshToken: session.refreshToken });
-    const out = await runDaily(client, {
-      say: (l, detail) => emit(l, detail),
-      setStatus: (m) => emit(`▸ ${m}`),
-      truncate: (t, n) => (t.length > n ? t.slice(0, n) + '…' : t),
-      date,
-    });
-    emit(out.result === 'already_done' ? `✅ 이미 완료됨 (${out.dateLabel})` : `✅ 계획+회고 완료 (${out.dateLabel})`);
-    if (date === todayKST()) saveSettings({ lastRun: { date: out.dateLabel, result: out.result, at: new Date().toISOString() } });
-    addHistory({ at: startedAt, date, trigger, result: out.result, log: buf.slice(-60).join('\n') });
-    return out;
+    const failed = [];
+    let out;
+    for (const date of dates) {
+      const from = buf.length;
+      if (dates.length > 1) emit(`── ${date} ──`);
+      try {
+        out = await runDaily(client, {
+          say: (l, detail) => emit(l, detail),
+          setStatus: (m) => emit(`▸ ${m}`),
+          truncate: (t, n) => (t.length > n ? t.slice(0, n) + '…' : t),
+          date,
+        });
+        emit(out.result === 'already_done' ? `✅ 이미 완료됨 (${out.dateLabel})` : `✅ 계획+회고 완료 (${out.dateLabel})`);
+        if (date === todayKST()) saveSettings({ lastRun: { date: out.dateLabel, result: out.result, at: new Date().toISOString() } });
+        record({ date, result: out.result }, from);
+      } catch (err) {
+        if (dates.length === 1) throw err;
+        emit(`❌ ${date}: ${err.message}`);
+        failed.push(date);
+        record({ date, result: 'error', message: err.message }, from);
+      }
+    }
+    if (dates.length === 1) return out;
+    emit(failed.length ? `⚠ ${dates.length}일 중 ${failed.length}일 실패: ${failed.join(', ')}` : `✅ ${dates.length}일 처리 완료`);
+    return { result: failed.length ? 'error' : 'done', failed };
   } catch (err) {
-    if (date === todayKST()) saveSettings({ lastRun: { date: todayKST(), result: 'error', at: new Date().toISOString(), message: err.message } });
-    addHistory({ at: startedAt, date, trigger, result: 'error', message: err.message, log: buf.slice(-60).join('\n') });
+    if (dates[0] === todayKST()) saveSettings({ lastRun: { date: todayKST(), result: 'error', at: new Date().toISOString(), message: err.message } });
+    record({ date: dates[0], result: 'error', message: err.message });
     throw err;
   } finally {
     session?.close();
     running = false;
     send('status', { running: false });
   }
+}
+
+// 자동 실행(기준 시각, +4시간, +12시간) 중 지금이 마지막 시도인지 — 가장 가까운 시각 기준
+function isLastAttempt() {
+  const [h, m] = String(loadSettings().dailyTime || '08:30').split(':').map(Number);
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  let best = null;
+  for (const off of DAILY_OFFSETS_H) {
+    const d = Math.abs(nowMin - (((h + off) % 24) * 60 + m));
+    const dist = Math.min(d, 1440 - d);
+    if (!best || dist < best.dist) best = { dist, off };
+  }
+  return best.off === Math.max(...DAILY_OFFSETS_H);
 }
 
 function launchSpec() {
@@ -126,10 +157,11 @@ if (AUTO || SELFTEST) {
       if (SELFTEST && process.env.SELFTEST_EMAIL) saveSettings({ email: process.env.SELFTEST_EMAIL, password: process.env.SELFTEST_PASSWORD, geminiKey: process.env.SELFTEST_GEMINI, showBrowser: process.env.SELFTEST_SHOW === '1' });
       console.log(`[${new Date().toISOString()}] 자동 계획+회고 시작`);
       const out = await runJob((l) => console.log(l));
-      if (AUTO) notify('Auto Newrrow', out.result === 'already_done' ? '오늘은 이미 완료되어 있어요' : '오늘 계획·회고를 완료했어요');
+      if (AUTO && out.result !== 'already_done') notify('Auto Newrrow', '오늘 계획·회고를 완료했어요');
     } catch (err) {
       console.error('❌ 자동 실행 실패:', err.message);
-      if (AUTO) notify('Auto Newrrow 실패', err.message);
+      // 하루 3번 시도 중 마지막 시도까지 실패했을 때만 알림 (앞선 시도는 다음 시도가 이어서 처리)
+      if (AUTO && isLastAttempt()) notify('Auto Newrrow 오늘 자동 실행 실패', err.message);
       code = 1;
     }
     setTimeout(() => app.exit(code), AUTO ? 1500 : 0);
@@ -153,10 +185,29 @@ if (AUTO || SELFTEST) {
     saveSettings(clean);
     return true;
   });
+  ipcMain.handle('job:range', async (_e, from, to, skipWeekend) => {
+    try {
+      const ok = (d) => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d);
+      if (!ok(from) || !ok(to) || from > to) throw new Error('기간이 올바르지 않아요 (시작일이 종료일보다 늦어요)');
+      const dates = [];
+      for (let t = Date.parse(`${from}T00:00:00Z`); t <= Date.parse(`${to}T00:00:00Z`); t += 864e5) {
+        const d = new Date(t);
+        if (skipWeekend && [0, 6].includes(d.getUTCDay())) continue;
+        dates.push(d.toISOString().slice(0, 10));
+      }
+      if (!dates.length) throw new Error('처리할 날짜가 없어요');
+      if (dates.length > 31) throw new Error('한 번에 최대 31일까지만 처리해요');
+      const out = await runJob((l, detail) => send('log', { time: stamp(), text: l, detail }), dates);
+      return { ok: out.result !== 'error', result: out.result };
+    } catch (err) {
+      send('log', { time: stamp(), text: `❌ ${err.message}` });
+      return { ok: false, error: err.message };
+    }
+  });
   ipcMain.handle('job:run', async (_e, date) => {
     try {
       if (date !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('날짜 형식이 올바르지 않아요');
-      const out = await runJob((l, detail) => send('log', { time: stamp(), text: l, detail }), date || todayKST());
+      const out = await runJob((l, detail) => send('log', { time: stamp(), text: l, detail }), [date || todayKST()]);
       return { ok: true, result: out.result };
     } catch (err) {
       send('log', { time: stamp(), text: `❌ ${err.message}` });

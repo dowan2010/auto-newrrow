@@ -48,6 +48,9 @@
   .cta { display:flex; flex-direction:column; align-items:center; gap:12px; margin-top:28px; }
   .last { font:450 12px/1.33 var(--font); color:var(--muted); min-height:16px; }
   .rundate { font:450 12px/1.33 var(--font); color:var(--muted); display:flex; align-items:center; gap:8px; margin:0; }
+  .chk { display:inline-flex; align-items:center; gap:4px; margin:0; font:450 12px/1.33 var(--font); color:var(--muted); }
+  .chk input { height:auto; }
+  .rundate { flex-wrap:wrap; justify-content:center; }
   .rundate input { height:32px; padding:0 10px; border:0; border-radius:var(--r-full); background:var(--field); font:450 13px/1 var(--font); color:var(--ink); }
 
   /* buttons — 알약 */
@@ -156,6 +159,7 @@
         <button id="run" class="btn primary"><span class="ring"></span><span id="runLabel">지금 실행</span></button>
         <span class="last" id="lastRun"></span>
         <label class="rundate" for="runDate">실행할 날짜 <input id="runDate" type="date"></label><button class="chip help-btn" id="historyBtn" type="button" style="margin-left:8px">실행 기록</button>
+        <div class="rundate">빠진 날 채우기 <input id="fillFrom" type="date"> ~ <input id="fillTo" type="date"> <label class="chk"><input id="fillWeekend" type="checkbox" checked> 주말 제외</label> <button id="fillRun" class="btn outline" style="height:32px;padding:0 14px;font-size:13px">채우기</button></div>
       </div>
     </section>
 

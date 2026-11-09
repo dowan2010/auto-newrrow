@@ -168,9 +168,17 @@ async function applyDaily(on) {
 $('seg').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) applyDaily(b.dataset.on === '1'); });
 $('dailyTime').addEventListener('change', () => { if (dailyOn) applyDaily(true); });
 
+$('fillRun').addEventListener('click', async () => {
+  const from = $('fillFrom').value, to = $('fillTo').value || todayStr();
+  if (!from) { addLog({ time: new Date().toLocaleTimeString('en-GB'), text: '❌ 시작일을 골라 주세요' }); return; }
+  clearLog();
+  await window.api.runRange(from, to, $('fillWeekend').checked);
+});
+
 window.api.onLog(addLog);
 window.api.onStatus((s) => {
   $('run').disabled = s.running;
+  $('fillRun').disabled = s.running;
   $('run').classList.toggle('busy', s.running);
   $('runLabel').textContent = s.running ? '실행 중' : '지금 실행';
   if (s.running) setChip('run', '실행 중');

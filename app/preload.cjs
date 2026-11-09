@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('api', {
   getSettings: () => ipcRenderer.invoke('settings:get'),
   saveSettings: (s) => ipcRenderer.invoke('settings:save', s),
   run: (date) => ipcRenderer.invoke('job:run', date),
+  runRange: (from, to, skipWeekend) => ipcRenderer.invoke('job:range', from, to, skipWeekend),
   getDaily: () => ipcRenderer.invoke('daily:get'),
   setDaily: (on, time) => ipcRenderer.invoke('daily:set', on, time),
   getHistory: () => ipcRenderer.invoke('history:get'),
