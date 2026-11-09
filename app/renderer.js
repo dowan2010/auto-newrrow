@@ -199,7 +199,7 @@ function releaseNotes(body, version) {
   const w = await window.api.getWhatsNew();
   if (!w) return;
   const notes = releaseNotes(w.notes, w.version);
-  if (notes) openModal(`${w.version} 업데이트 내용`, notes);
+  if (notes) openModal(`${w.version} 업데이트 내용`, notes, true);
 })();
 
 // 업데이트 확인 — 새 버전이 있으면 알림 띄우고, 버튼으로 dmg를 받아 열어 줌
@@ -212,7 +212,7 @@ function releaseNotes(body, version) {
   const notes = releaseNotes(info.update.notes, info.update.latest);
   if (notes) {
     $('updateNotes').style.display = '';
-    $('updateNotes').addEventListener('click', () => openModal(`${info.update.latest} 변경 내용`, notes));
+    $('updateNotes').addEventListener('click', () => openModal(`${info.update.latest} 변경 내용`, notes, true));
   }
   window.api.onUpdateProgress((p) => {
     if (p === 'installing') { $('updateText').textContent = '설치 중이에요. 앱이 잠시 꺼졌다 다시 켜져요'; $('updateBtn').style.display = 'none'; }
@@ -252,9 +252,35 @@ $('historyBtn').addEventListener('click', async () => {
 
 // 로그 상세 보기 (본문 전체 등)
 const modal = $('modal');
-function openModal(title, body) {
+// **굵게**, `코드`, "- 목록"만 지원하는 간단한 마크다운 (textContent로만 넣어 안전함)
+function renderMd(el, text) {
+  el.textContent = '';
+  const inline = (parent, t) => {
+    for (const part of t.split(/(\*\*[^*]+\*\*|`[^`]+`)/)) {
+      if (!part) continue;
+      const node = part.startsWith('**') ? Object.assign(document.createElement('b'), { textContent: part.slice(2, -2) })
+        : part.startsWith('`') ? Object.assign(document.createElement('code'), { textContent: part.slice(1, -1) })
+        : document.createTextNode(part);
+      parent.appendChild(node);
+    }
+  };
+  let ul = null;
+  for (const line of text.split('\n')) {
+    const m = /^\s*[-*]\s+(.*)$/.exec(line);
+    if (m) {
+      if (!ul) { ul = document.createElement('ul'); el.appendChild(ul); }
+      const li = document.createElement('li'); inline(li, m[1]); ul.appendChild(li);
+    } else if (line.trim()) {
+      ul = null;
+      const p = document.createElement('p'); inline(p, line); el.appendChild(p);
+    } else ul = null;
+  }
+}
+
+function openModal(title, body, md = false) {
   $('modalTitle').textContent = title;
-  $('modalBody').textContent = body;
+  $('modalBody').classList.toggle('md', md);
+  if (md) renderMd($('modalBody'), body); else $('modalBody').textContent = body;
   $('modalCopy').textContent = '복사';
   modal.classList.add('show');
 }
