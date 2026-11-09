@@ -129,6 +129,7 @@ async function init() {
   saved = { gemini: s.hasGeminiKey, openai: s.hasOpenaiKey, claude: s.hasClaudeKey };
   setProvider(s.aiProvider || 'gemini');
   setSchool(s.school || 'dgsm');
+  if (!$('runDate').value) $('runDate').value = todayStr();
   $('schoolUrl').value = s.schoolUrl || '';
   setShow(!!s.showBrowser);
   showLast(s.lastRun);
@@ -152,10 +153,11 @@ $('save').addEventListener('click', async () => {
 
 $('run').addEventListener('click', async () => {
   clearLog();
-  const res = await window.api.run();
+  const date = $('runDate').value || todayStr();
+  const res = await window.api.run(date);
   const s = await window.api.getSettings();
   showLast(s.lastRun);
-  if (!res.ok) setChip('err', '실패');
+  if (!res.ok && date === todayStr()) setChip('err', '실패');
 });
 
 async function applyDaily(on) {
@@ -234,7 +236,7 @@ $('historyBtn').addEventListener('click', async () => {
   const label = { done: '완료', already_done: '이미 완료', error: '실패' };
   const body = list.map((h) => {
     const d = new Date(h.at);
-    const head = `${d.getMonth() + 1}/${d.getDate()} ${d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} · ${h.trigger === 'auto' ? '자동' : '수동'} · ${label[h.result] ?? h.result}${h.message ? ` — ${h.message}` : ''}`;
+    const head = `${d.getMonth() + 1}/${d.getDate()} ${d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} · ${h.trigger === 'auto' ? '자동' : '수동'} · ${h.date ? `${h.date}분 · ` : ''}${label[h.result] ?? h.result}${h.message ? ` — ${h.message}` : ''}`;
     return `■ ${head}\n${h.log.split('\n').map((l) => `   ${l}`).join('\n')}`;
   }).join('\n\n');
   openModal('실행 기록', body);

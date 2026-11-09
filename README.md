@@ -64,6 +64,7 @@ newrrow
 newrrow --install-daily 08:30   # 매일 08:30 / 12:30 / 20:30 (기준 시각 +4시간, +12시간) 등록, 시간 생략하면 08:30 기준
                                 # 일시 오류 대비 하루 3번 시도하고, 이미 완료된 날은 건너뜀
 newrrow --uninstall-daily       # 해제
+newrrow --auto --date=2026-11-05   # 오늘이 아닌 날짜의 계획·회고 작성 (앱에서는 "실행할 날짜"에서 선택)
 ```
 
 로그: `~/Library/Logs/daymark-auto.log`. Mac이 그 시간에 잠자기면 밀릴 수 있음.

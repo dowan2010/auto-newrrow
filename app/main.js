@@ -31,7 +31,7 @@ function addHistory(entry) {
   saveSettings({ history: [entry, ...(loadSettings().history ?? [])].slice(0, 15) });
 }
 
-async function runJob(emitRaw) {
+async function runJob(emitRaw, date = todayKST()) {
   const buf = [];
   const emit = (l, detail) => { buf.push(l); emitRaw(l, detail); };
   const startedAt = new Date().toISOString();
@@ -68,14 +68,15 @@ async function runJob(emitRaw) {
       say: (l, detail) => emit(l, detail),
       setStatus: (m) => emit(`▸ ${m}`),
       truncate: (t, n) => (t.length > n ? t.slice(0, n) + '…' : t),
+      date,
     });
     emit(out.result === 'already_done' ? `✅ 이미 완료됨 (${out.dateLabel})` : `✅ 계획+회고 완료 (${out.dateLabel})`);
-    saveSettings({ lastRun: { date: out.dateLabel, result: out.result, at: new Date().toISOString() } });
-    addHistory({ at: startedAt, trigger, result: out.result, log: buf.slice(-60).join('\n') });
+    if (date === todayKST()) saveSettings({ lastRun: { date: out.dateLabel, result: out.result, at: new Date().toISOString() } });
+    addHistory({ at: startedAt, date, trigger, result: out.result, log: buf.slice(-60).join('\n') });
     return out;
   } catch (err) {
-    saveSettings({ lastRun: { date: todayKST(), result: 'error', at: new Date().toISOString(), message: err.message } });
-    addHistory({ at: startedAt, trigger, result: 'error', message: err.message, log: buf.slice(-60).join('\n') });
+    if (date === todayKST()) saveSettings({ lastRun: { date: todayKST(), result: 'error', at: new Date().toISOString(), message: err.message } });
+    addHistory({ at: startedAt, date, trigger, result: 'error', message: err.message, log: buf.slice(-60).join('\n') });
     throw err;
   } finally {
     session?.close();
@@ -152,9 +153,10 @@ if (AUTO || SELFTEST) {
     saveSettings(clean);
     return true;
   });
-  ipcMain.handle('job:run', async () => {
+  ipcMain.handle('job:run', async (_e, date) => {
     try {
-      const out = await runJob((l, detail) => send('log', { time: stamp(), text: l, detail }));
+      if (date !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('날짜 형식이 올바르지 않아요');
+      const out = await runJob((l, detail) => send('log', { time: stamp(), text: l, detail }), date || todayKST());
       return { ok: true, result: out.result };
     } catch (err) {
       send('log', { time: stamp(), text: `❌ ${err.message}` });

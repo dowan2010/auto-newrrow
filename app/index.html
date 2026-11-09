@@ -47,6 +47,8 @@
   .lead { font:300 clamp(17px,1.6vw,24px)/1.38 var(--font); color:var(--muted); margin-top:16px; }
   .cta { display:flex; flex-direction:column; align-items:center; gap:12px; margin-top:28px; }
   .last { font:450 12px/1.33 var(--font); color:var(--muted); min-height:16px; }
+  .rundate { font:450 12px/1.33 var(--font); color:var(--muted); display:flex; align-items:center; gap:8px; margin:0; }
+  .rundate input { height:32px; padding:0 10px; border:0; border-radius:var(--r-full); background:var(--field); font:450 13px/1 var(--font); color:var(--ink); }
 
   /* buttons — 알약 */
   .btn { height:44px; padding:0 22px; border-radius:var(--r-full); border:0; font:600 16px/1 var(--font); cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:10px; }
@@ -152,7 +154,8 @@
       <p class="lead">AI가 대신 작성해서 뉴로우에 제출해요.</p>
       <div class="cta">
         <button id="run" class="btn primary"><span class="ring"></span><span id="runLabel">지금 실행</span></button>
-        <span class="last" id="lastRun"></span><button class="chip help-btn" id="historyBtn" type="button" style="margin-left:8px">실행 기록</button>
+        <span class="last" id="lastRun"></span>
+        <label class="rundate" for="runDate">실행할 날짜 <input id="runDate" type="date"></label><button class="chip help-btn" id="historyBtn" type="button" style="margin-left:8px">실행 기록</button>
       </div>
     </section>
 

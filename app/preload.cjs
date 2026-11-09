@@ -6,7 +6,7 @@ contextBridge.exposeInMainWorld('api', {
   openExternal: (url) => ipcRenderer.invoke('open:external', url),
   getSettings: () => ipcRenderer.invoke('settings:get'),
   saveSettings: (s) => ipcRenderer.invoke('settings:save', s),
-  run: () => ipcRenderer.invoke('job:run'),
+  run: (date) => ipcRenderer.invoke('job:run', date),
   getDaily: () => ipcRenderer.invoke('daily:get'),
   setDaily: (on, time) => ipcRenderer.invoke('daily:set', on, time),
   getHistory: () => ipcRenderer.invoke('history:get'),

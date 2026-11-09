@@ -35,6 +35,8 @@ let PASSWORD = process.env.PASSWORD || process.env.TEST_PASSWORD;
 
 // launchd 등 스케줄러가 --auto로 실행할 때 — 카드 UI 없이 콘솔 로그만 찍고 바로 종료
 const AUTO_MODE = process.argv.includes('--auto');
+// --date=YYYY-MM-DD: 오늘이 아닌 날짜의 계획·회고를 작성 (없으면 오늘)
+const RUN_DATE = process.argv.find((a) => /^--date=\d{4}-\d{2}-\d{2}$/.test(a))?.slice(7);
 
 // 자동 실행(매일) 등록/해제 — 실행 후 바로 종료
 {
@@ -581,7 +583,7 @@ async function runAutoAllCore({ say, setStatus }) {
   setStatus('뉴로우 접속 중...');
   const session = await openAgentSession(EMAIL, PASSWORD, { silent: true, onProgress: async (step) => { setStatus(step); } });
   try {
-    return await runDaily(session, { say, setStatus, truncate: truncateToWidth });
+    return await runDaily(session, { say, setStatus, truncate: truncateToWidth, ...(RUN_DATE ? { date: RUN_DATE } : {}) });
   } finally {
     await session.close();
   }
